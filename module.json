@@ -21,6 +21,8 @@
     ]
   },
   "scripts": [
+    "scripts/module/context.js",
+    "scripts/features/champion/oath-of-the-defender.js",
     "scripts/main.js"
   ]
 }

@@ -4,7 +4,7 @@ A personal collection of PF2E fixes, automation, and utility tools for Foundry V
 
 Current features include:
 
-- Fixes an issue with Champion sworn-creature resistance being applied incorrectly across multi-instance damage
+- Fixes the Oath of the Defender aura so damage from sworn creature kind is applied to only the highest damage instance, as the feat intends
 - Provides a foundation for additional PF2E automation and quality-of-life improvements
 
 Requirements:
@@ -18,7 +18,7 @@ This module is a personal collection of PF2E fixes, automation, and utility tool
 
 Current implemented fix:
 
-- Fixes a Champion resistance edge case where damage from sworn creature kind was applied incorrectly for multi-instance damage
+- Fixes the Champion feat Oath of the Defender so allied aura resistance against damage from sworn creature kind is applied only to the highest damage instance, matching the feat text
 
 Requirements:
 
@@ -31,7 +31,7 @@ Requirements:
 
 Сейчас реализован такой фикс:
 
-- Исправлена проблема с сопротивлением чемпиона к урону от sworn creature kind, когда оно некорректно применялось к урону из нескольких инстансов
+- Исправлен фит чемпиона Oath of the Defender: сопротивление союзников в ауре к урону от sworn creature kind теперь применяется только к наибольшему инстансу урона, как и указано в тексте фита
 
 Зависимости и требования:
 
