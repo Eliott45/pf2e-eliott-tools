@@ -1,0 +1,26 @@
+{
+  "id": "pf2e-eliott-tools",
+  "title": "PF2E Eliott Tools",
+  "description": "A personal collection of PF2E fixes, automation, and utility tools for Foundry VTT.",
+  "version": "0.0.1",
+  "authors": [
+    {
+      "name": "Maksim"
+    }
+  ],
+  "compatibility": {
+    "minimum": "12",
+    "verified": "13"
+  },
+  "relationships": {
+    "systems": [
+      {
+        "id": "pf2e",
+        "type": "system"
+      }
+    ]
+  },
+  "scripts": [
+    "scripts/main.js"
+  ]
+}
