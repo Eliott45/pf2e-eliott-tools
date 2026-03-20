@@ -1,0 +1,53 @@
+name: Release module
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate tag matches module version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./module.json').version")
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          if [ "$VERSION" != "$TAG_VERSION" ]; then
+            echo "module.json version ($VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+
+      - name: Build release archive
+        shell: bash
+        run: |
+          mkdir -p dist
+          zip -r "dist/pf2e-eliott-tools.zip" \
+            module.json \
+            README.md \
+            scripts
+
+      - name: Copy manifest for release asset
+        shell: bash
+        run: cp module.json dist/module.json
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/module.json
+            dist/pf2e-eliott-tools.zip
+          generate_release_notes: true

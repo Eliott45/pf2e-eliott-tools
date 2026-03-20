@@ -12,6 +12,17 @@ Requirements:
 - Foundry VTT v12-v13
 - Pathfinder 2e system
 
+Manifest URL for Foundry installation:
+
+- https://github.com/Eliott45/pf2e-eliott-tools/releases/latest/download/module.json
+
+## Release workflow
+
+- Update `version` in `module.json`
+- Commit the changes and push them to GitHub
+- Create and push a tag like `v0.0.1`
+- GitHub Actions will build `module.json` and `pf2e-eliott-tools.zip`, then publish a release automatically
+
 ## English
 
 This module is a personal collection of PF2E fixes, automation, and utility tools for Foundry VTT.
