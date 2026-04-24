@@ -1,6 +1,8 @@
 (function () {
   const tools = globalThis.pf2eEliottTools;
   const { flagPath, id: moduleId, logPrefix } = tools.module;
+  const oathDamageTypeKey = "PF2E.IWR.Custom.DamageFromSwornCreatures";
+  const oathDamageTypeFallback = "damage from sworn creature kind";
 
   tools.features ??= {};
   tools.features.champion ??= {};
@@ -125,7 +127,14 @@
     if (application?.category !== "resistance") return false;
 
     const type = normalizeText(application.type);
-    return type === "damage from sworn creature kind" || type.startsWith("damage from sworn creature kind ");
+    return getOathDamageTypePrefixes().some(
+      (prefix) => type === prefix || type.startsWith(`${prefix} `)
+    );
+  }
+
+  function getOathDamageTypePrefixes() {
+    const localized = normalizeText(game?.i18n?.localize?.(oathDamageTypeKey));
+    return [...new Set([localized, oathDamageTypeFallback].map(normalizeText).filter(Boolean))];
   }
 
   function collapseOathOfTheDefenderApplications(applications) {
