@@ -3,14 +3,20 @@
   const { flagPath, id: moduleId, logPrefix } = tools.module;
   const oathDamageTypeKey = "PF2E.IWR.Custom.DamageFromSwornCreatures";
   const oathDamageTypeFallback = "damage from sworn creature kind";
+  const oathEffectSourceId = "Compendium.pf2e.feat-effects.Item.nBQZdTtwNLJ70J6C";
 
   tools.features ??= {};
   tools.features.champion ??= {};
 
   tools.features.champion.oathOfTheDefender = {
+    onInit,
     onCreateChatMessage,
     onRenderChatMessage,
   };
+
+  function onInit() {
+    installOathResistanceRulePatch();
+  }
 
   async function onCreateChatMessage(message) {
     try {
@@ -71,6 +77,7 @@
 
     if (correctionPlan.actor && correctionPlan.actorUpdates) {
       await correctionPlan.actor.update(correctionPlan.actorUpdates, {
+        damageTaken: correctionAmount,
         [`${moduleId}Correction`]: correctionAmount,
       });
     }
@@ -135,6 +142,48 @@
   function getOathDamageTypePrefixes() {
     const localized = normalizeText(game?.i18n?.localize?.(oathDamageTypeKey));
     return [...new Set([localized, oathDamageTypeFallback].map(normalizeText).filter(Boolean))];
+  }
+
+  function installOathResistanceRulePatch() {
+    const itemPrototype = CONFIG.Item?.documentClass?.prototype;
+    if (!itemPrototype?.prepareRuleElements) return;
+    if (itemPrototype._pf2eEliottOathPatched) return;
+
+    const originalPrepareRuleElements = itemPrototype.prepareRuleElements;
+    itemPrototype.prepareRuleElements = function (...args) {
+      const rules = originalPrepareRuleElements.call(this, ...args);
+      try {
+        limitOathResistanceApplications(rules);
+      } catch (error) {
+        console.error(`${logPrefix} | failed to patch oath resistance rule elements`, error);
+      }
+      return rules;
+    };
+
+    itemPrototype._pf2eEliottOathPatched = true;
+  }
+
+  function limitOathResistanceApplications(rules) {
+    if (!Array.isArray(rules)) return;
+
+    for (const rule of rules) {
+      if (!isOathResistanceRule(rule)) continue;
+      rule.maxApplications = 1;
+    }
+  }
+
+  function isOathResistanceRule(rule) {
+    if (!rule || rule.key !== "Resistance") return false;
+
+    const item = rule.item;
+    if (!item?.isOfType?.("effect")) return false;
+    if (item.sourceId === oathEffectSourceId) return true;
+
+    const label = normalizeText(rule.label);
+    const localizedLabel = normalizeText(game?.i18n?.localize?.(rule.label));
+    return getOathDamageTypePrefixes().some(
+      (prefix) => label === prefix || localizedLabel === prefix
+    );
   }
 
   function collapseOathOfTheDefenderApplications(applications) {

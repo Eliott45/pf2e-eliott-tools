@@ -4,6 +4,7 @@
   const oathOfTheDefender = tools.features.champion.oathOfTheDefender;
 
   Hooks.once("init", () => {
+    oathOfTheDefender.onInit();
     console.log(`${logPrefix} | init`);
   });
 
