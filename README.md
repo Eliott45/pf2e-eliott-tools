@@ -5,6 +5,7 @@ A personal collection of PF2E fixes, automation, and utility tools for Foundry V
 Current features include:
 
 - Fixes the Oath of the Defender aura so damage from sworn creature kind is applied to only the highest damage instance, as the feat intends
+- Adds a Hero Action Deck compendium that uses module card art and synchronizes names/descriptions from the PF2e system Hero Point Deck journal
 - Provides a foundation for additional PF2E automation and quality-of-life improvements
 
 Requirements:
@@ -30,6 +31,7 @@ This module is a personal collection of PF2E fixes, automation, and utility tool
 Current implemented fix:
 
 - Fixes the Champion feat Oath of the Defender so allied aura resistance against damage from sworn creature kind is applied only to the highest damage instance, matching the feat text
+- Adds a Hero Action Deck cards compendium. The deck uses the module card images and synchronizes card names and descriptions from the PF2e system Hero Point Deck journal so system/localization text remains the source of truth
 
 Requirements:
 

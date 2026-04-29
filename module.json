@@ -28,6 +28,30 @@
   "scripts": [
     "scripts/module/context.js",
     "scripts/features/champion/oath-of-the-defender.js",
+    "scripts/features/hero-action-deck.js",
     "scripts/main.js"
+  ],
+  "packs": [
+    {
+      "name": "hero-action-deck",
+      "label": "Hero Action Deck",
+      "path": "packs/hero-action-deck",
+      "type": "Cards",
+      "system": "pf2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    }
+  ],
+  "packFolders": [
+    {
+      "name": "PF2E Eliott Tools",
+      "sorting": "m",
+      "color": "#2f3339",
+      "packs": [
+        "hero-action-deck"
+      ]
+    }
   ]
 }

@@ -38,6 +38,8 @@ jobs:
           zip -r "dist/pf2e-eliott-tools.zip" \
             module.json \
             README.md \
+            assets \
+            packs \
             scripts
 
       - name: Copy manifest for release asset
