@@ -2,6 +2,7 @@
   const tools = globalThis.pf2eEliottTools;
   const { logPrefix } = tools.module;
   const oathOfTheDefender = tools.features.champion.oathOfTheDefender;
+  const heroActionDeck = tools.features.heroActionDeck;
 
   Hooks.once("init", () => {
     oathOfTheDefender.onInit();
@@ -9,6 +10,7 @@
   });
 
   Hooks.once("ready", () => {
+    void heroActionDeck.onReady();
     console.log(`${logPrefix} | ready`);
   });
 
