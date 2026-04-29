@@ -115,7 +115,7 @@
     const cardSources = sourcePages
       .slice(0, cardCount)
       .map((page, index) => ({
-        number: String(index).padStart(2, "0"),
+        number: String(index + 1).padStart(2, "0"),
         page,
         sort: index,
       }));
@@ -196,7 +196,7 @@
         {
           name,
           text,
-          img: `${imageBase}/${cardSource.number}.png`,
+          img: `${imageBase}/${getImageFileName(cardSource.number)}`,
         },
       ],
       face: 0,
@@ -222,6 +222,15 @@
         },
       },
     };
+  }
+
+  function getImageFileName(number) {
+    const numericNumber = Number(number);
+    const existingUnpaddedNumbers = new Set([4, 5, 6, 7, 8, 9]);
+
+    return existingUnpaddedNumbers.has(numericNumber)
+      ? `${numericNumber}.png`
+      : `${number}.png`;
   }
 
   function normalizeName(value) {

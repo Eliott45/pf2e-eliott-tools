@@ -1,5 +1,3 @@
-2026/04/30-04:24:22.080 7b68 Delete type=3 #1
-2026/04/30-04:26:12.021 7674 Level-0 table #5: started
-2026/04/30-04:26:12.022 7674 Level-0 table #5: 35043 bytes OK
-2026/04/30-04:26:12.023 7674 Delete type=0 #3
-2026/04/30-04:26:12.024 7674 Manual compaction at level-0 from '!cards!g6ogx1ZNPR6OMNlu' @ 72057594037927935 : 1 .. '!cards.cards!g6ogx1ZNPR6OMNlu.ygzutEwNTVkpIIl3' @ 0 : 0; will stop at (end)
+2026/04/30-05:23:48.684 12d8 Recovering log #4
+2026/04/30-05:23:48.687 12d8 Delete type=0 #4
+2026/04/30-05:23:48.687 12d8 Delete type=3 #2
