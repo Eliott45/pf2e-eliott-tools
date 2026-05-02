@@ -35,6 +35,8 @@
   }
 
   async function maybeFixOathOfTheDefenderAura(message) {
+    if (!isEnabled()) return;
+
     const pf2e = message?.flags?.pf2e;
     if (pf2e?.context?.type !== "damage-taken") return;
     if (foundry.utils.getProperty(message, flagPath)) return;
@@ -164,6 +166,7 @@
   }
 
   function limitOathResistanceApplications(rules) {
+    if (!isEnabled()) return;
     if (!Array.isArray(rules)) return;
 
     for (const rule of rules) {
@@ -324,5 +327,10 @@
 
   function normalizeText(value) {
     return String(value ?? "").trim().toLowerCase();
+  }
+
+  function isEnabled() {
+    const setting = tools.module.settings?.oathOfTheDefenderEnabled;
+    return !setting || game.settings.get(moduleId, setting) !== false;
   }
 })();
