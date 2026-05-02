@@ -39,8 +39,10 @@ jobs:
             module.json \
             README.md \
             assets \
+            data \
             packs \
-            scripts
+            scripts \
+            styles
 
       - name: Copy manifest for release asset
         shell: bash
