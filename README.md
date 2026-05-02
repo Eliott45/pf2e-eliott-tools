@@ -5,8 +5,12 @@ A personal collection of PF2E fixes, automation, and utility tools for Foundry V
 Current features include:
 
 - Fixes the Oath of the Defender aura so damage from sworn creature kind is applied to only the highest damage instance, as the feat intends
-- Adds a Hero Action Deck compendium that uses module card art and synchronizes names/descriptions from the PF2e system Hero Point Deck journal
+- Adds a ready-to-use Hero Action Deck compendium with module card art
+- Adds a Russian Critical Hit/Fumble Deck journal compendium from bundled translation data and redirects PF2e critical deck table draws to the translated entries
 - Provides a foundation for additional PF2E automation and quality-of-life improvements
+
+Important: the Russian Critical Hit/Fumble Deck text is AI-translated and should be reviewed by the GM before use.
+Важно: русский текст колоды критических попаданий/промахов переведен через ИИ и должен быть проверен мастером перед использованием.
 
 Requirements:
 
@@ -31,7 +35,11 @@ This module is a personal collection of PF2E fixes, automation, and utility tool
 Current implemented fix:
 
 - Fixes the Champion feat Oath of the Defender so allied aura resistance against damage from sworn creature kind is applied only to the highest damage instance, matching the feat text
-- Adds a Hero Action Deck cards compendium. The deck uses the module card images and synchronizes card names and descriptions from the PF2e system Hero Point Deck journal so system/localization text remains the source of truth
+- Adds a ready-to-use Hero Action Deck cards compendium with module card images
+- Adds a Russian Critical Hit/Fumble Deck journal compendium from bundled translation data and redirects PF2e critical/fumble table draws to those translated entries
+
+Important: the Russian Critical Hit/Fumble Deck text is AI-translated and should be reviewed by the GM before use.
+Важно: русский текст колоды критических попаданий/промахов переведен через ИИ и должен быть проверен мастером перед использованием.
 
 Requirements:
 

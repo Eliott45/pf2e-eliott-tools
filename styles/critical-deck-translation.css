@@ -1,0 +1,61 @@
+.journal-entry-page .journal-page-content .eliott-critical-deck blockquote {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75em;
+}
+
+.journal-entry-page .journal-page-content .eliott-critical-deck blockquote p {
+  margin: 0;
+  min-width: 0;
+}
+
+.journal-entry-page .journal-page-content .eliott-critical-deck.critical-deck blockquote {
+  background: radial-gradient(circle, #18451f 10%, #113818 55%, #0b2d11 90%);
+  color: #f8f2df !important;
+}
+
+.journal-entry-page .journal-page-content .critical-deck blockquote,
+.journal-entry-page .journal-page-content .critical-deck blockquote > p,
+.journal-entry-page .journal-page-content .critical-deck blockquote h1,
+.journal-entry-page .journal-page-content .critical-deck blockquote h2,
+.journal-entry-page .journal-page-content .critical-deck blockquote h3,
+.journal-entry-page .journal-page-content .critical-deck blockquote h4,
+.journal-entry-page .journal-page-content .critical-deck blockquote h5,
+.journal-entry-page .journal-page-content .critical-deck blockquote h6,
+.journal-entry-page .journal-page-content .eliott-critical-deck.critical-deck blockquote > p,
+.journal-entry-page .journal-page-content .eliott-critical-deck.critical-deck blockquote > p em,
+.journal-entry-page .journal-page-content .eliott-critical-deck.critical-deck blockquote > p strong,
+.journal-entry-page .journal-page-content .critical-deck blockquote > p.eliott-critical-effect,
+.journal-entry-page .journal-page-content .critical-deck blockquote > p.eliott-critical-effect em,
+.journal-entry-page .journal-page-content .critical-deck blockquote > p.eliott-critical-effect strong {
+  color: #f8f2df !important;
+  text-shadow: 0 1px 2px #000 !important;
+}
+
+.journal-entry-page .journal-page-content .critical-deck blockquote > p span:not(.content-link):not(.with-repost),
+.journal-entry-page .journal-page-content .critical-deck blockquote > p em,
+.journal-entry-page .journal-page-content .critical-deck blockquote > p strong,
+.journal-entry-page .journal-page-content .eliott-critical-deck.critical-deck blockquote > p a:not(.content-link),
+.journal-entry-page .journal-page-content .eliott-critical-deck.critical-deck blockquote > p span:not(.content-link):not(.with-repost) {
+  color: #f8f2df !important;
+  text-shadow: 0 1px 2px #000 !important;
+}
+
+.journal-entry-page .journal-page-content .fumble-deck blockquote a:not(.content-link),
+.journal-entry-page .journal-page-content .fumble-deck blockquote a:not(.content-link) em,
+.journal-entry-page .journal-page-content .fumble-deck blockquote a:not(.content-link) code {
+  color: #f8f2df !important;
+  text-shadow: 0 1px 2px #000 !important;
+}
+
+.journal-entry-page .journal-page-content .eliott-critical-deck code {
+  float: none;
+  justify-self: end;
+  margin: 0;
+  min-width: 7em;
+  max-width: 11em;
+  width: auto;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}

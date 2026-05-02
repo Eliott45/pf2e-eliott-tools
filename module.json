@@ -28,8 +28,11 @@
   "scripts": [
     "scripts/module/context.js",
     "scripts/features/champion/oath-of-the-defender.js",
-    "scripts/features/hero-action-deck.js",
+    "scripts/features/critical-deck-translation.js",
     "scripts/main.js"
+  ],
+  "styles": [
+    "styles/critical-deck-translation.css"
   ],
   "packs": [
     {
@@ -38,6 +41,19 @@
       "path": "packs/hero-action-deck",
       "type": "Cards",
       "system": "pf2e",
+      "locked": false,
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "critical-deck-ru",
+      "label": "Critical Hit/Fumble Deck RU",
+      "path": "packs/critical-deck-ru",
+      "type": "JournalEntry",
+      "system": "pf2e",
+      "locked": false,
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
@@ -50,7 +66,8 @@
       "sorting": "m",
       "color": "#2f3339",
       "packs": [
-        "hero-action-deck"
+        "hero-action-deck",
+        "critical-deck-ru"
       ]
     }
   ]
