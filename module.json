@@ -2,7 +2,7 @@
   "id": "pf2e-eliott-tools",
   "title": "PF2E Eliott Tools",
   "description": "A personal collection of PF2E fixes, automation, and utility tools for Foundry VTT.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "authors": [
     {
       "name": "Maksim"
@@ -28,6 +28,7 @@
   "scripts": [
     "scripts/module/context.js",
     "scripts/features/champion/oath-of-the-defender.js",
+    "scripts/features/spells/shields-of-the-spirit.js",
     "scripts/features/critical-deck-translation.js",
     "scripts/main.js"
   ],

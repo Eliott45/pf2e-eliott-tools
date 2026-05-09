@@ -2,6 +2,7 @@
   const tools = globalThis.pf2eEliottTools;
   const { id: moduleId, logPrefix, settings } = tools.module;
   const oathOfTheDefender = tools.features.champion.oathOfTheDefender;
+  const shieldsOfTheSpirit = tools.features.spells.shieldsOfTheSpirit;
   const criticalDeckTranslation = tools.features.criticalDeckTranslation;
 
   Hooks.once("init", () => {
@@ -24,7 +25,11 @@
 
   Hooks.on("createChatMessage", (...args) => {
     if (isSettingEnabled(settings.oathOfTheDefenderEnabled)) {
-      return oathOfTheDefender.onCreateChatMessage(...args);
+      void oathOfTheDefender.onCreateChatMessage(...args);
+    }
+
+    if (isSettingEnabled(settings.shieldsOfTheSpiritEnabled)) {
+      void shieldsOfTheSpirit.onCreateChatMessage(...args);
     }
   });
 
@@ -47,6 +52,15 @@
     game.settings.register(moduleId, settings.criticalDeckTranslationEnabled, {
       name: "Включить русский оверрайд крит-колоды",
       hint: "Перенаправляет броски PF2e Critical Hit/Fumble Deck на русские записи журнала из этого модуля.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true,
+    });
+
+    game.settings.register(moduleId, settings.shieldsOfTheSpiritEnabled, {
+      name: "Включить автоматизацию Shields of the Spirit",
+      hint: "Автоматически бросает spirit-урон по атакующему, когда он делает действие с признаком attack против цели с эффектом Shields of the Spirit.",
       scope: "world",
       config: true,
       type: Boolean,

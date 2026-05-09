@@ -9,6 +9,7 @@
     settings: {
       oathOfTheDefenderEnabled: "oathOfTheDefenderEnabled",
       criticalDeckTranslationEnabled: "criticalDeckTranslationEnabled",
+      shieldsOfTheSpiritEnabled: "shieldsOfTheSpiritEnabled",
     },
   };
 })();

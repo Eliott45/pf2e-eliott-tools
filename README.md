@@ -1,60 +1,63 @@
 # PF2E Eliott Tools
 
-A personal collection of PF2E fixes, automation, and utility tools for Foundry VTT.
+Личный модуль для Pathfinder 2e в Foundry VTT: небольшие фиксы, автоматизация и готовые компендиумы для наших игр.
 
-Current features include:
+## Что делает модуль
 
-- Fixes the Oath of the Defender aura so damage from sworn creature kind is applied to only the highest damage instance, as the feat intends
-- Adds a ready-to-use Hero Action Deck compendium with module card art
-- Adds a Russian Critical Hit/Fumble Deck journal compendium from bundled translation data and redirects PF2e critical deck table draws to the translated entries
-- Provides a foundation for additional PF2E automation and quality-of-life improvements
+- Исправляет `Oath of the Defender`: сопротивление союзников в ауре применяется только к самому большому подходящему инстансу урона, как написано в фите.
+- Добавляет готовый компендиум `Hero Action Deck` с картами действий героя.
+- Добавляет русский компендиум `Critical Hit/Fumble Deck RU` и перенаправляет броски стандартной крит-колоды PF2e на русские записи журнала.
+- Добавляет опциональную автоматизацию `Shields of the Spirit`: когда атакующее действие с признаком `attack` направлено на цель с этим эффектом, модуль автоматически бросает ответный spirit-урон по атакующему.
 
-Important: the Russian Critical Hit/Fumble Deck text is AI-translated and should be reviewed by the GM before use.
-Важно: русский текст колоды критических попаданий/промахов переведен через ИИ и должен быть проверен мастером перед использованием.
+## Настройки
 
-Requirements:
+В настройках мира можно отдельно включать и выключать:
 
-- Foundry VTT v12-v13
-- Pathfinder 2e system
+- фикс `Oath of the Defender`;
+- русский оверрайд крит-колоды;
+- автоматизацию `Shields of the Spirit`.
 
-Manifest URL for Foundry installation:
+Это нужно, чтобы быстро отключить функционал, если PF2e позже добавит официальную поддержку или если конкретная игра хочет вести правило вручную.
 
-- https://github.com/Eliott45/pf2e-eliott-tools/releases/latest/download/module.json
+## Важное замечание о переводе
 
-## Release workflow
+Русский текст `Critical Hit/Fumble Deck RU` переведен через ИИ и должен быть проверен мастером перед использованием.
 
-- Update `version` in `module.json`
-- Commit the changes and push them to GitHub
-- Create and push a tag like `v0.0.1`
-- GitHub Actions will build `module.json` and `pf2e-eliott-tools.zip`, then publish a release automatically
-
-## English
-
-This module is a personal collection of PF2E fixes, automation, and utility tools for Foundry VTT.
-
-Current implemented fix:
-
-- Fixes the Champion feat Oath of the Defender so allied aura resistance against damage from sworn creature kind is applied only to the highest damage instance, matching the feat text
-- Adds a ready-to-use Hero Action Deck cards compendium with module card images
-- Adds a Russian Critical Hit/Fumble Deck journal compendium from bundled translation data and redirects PF2e critical/fumble table draws to those translated entries
-
-Important: the Russian Critical Hit/Fumble Deck text is AI-translated and should be reviewed by the GM before use.
-Важно: русский текст колоды критических попаданий/промахов переведен через ИИ и должен быть проверен мастером перед использованием.
-
-Requirements:
+## Требования
 
 - Foundry VTT v12-v13
 - Pathfinder 2e system
 
-## Russian
+## Установка
 
-Этот модуль - моя личная сборка фиксов, автоматизации и полезных инструментов для PF2E в Foundry VTT.
+Manifest URL:
 
-Сейчас реализован такой фикс:
+```text
+https://github.com/Eliott45/pf2e-eliott-tools/releases/latest/download/module.json
+```
 
-- Исправлен фит чемпиона Oath of the Defender: сопротивление союзников в ауре к урону от sworn creature kind теперь применяется только к наибольшему инстансу урона, как и указано в тексте фита
+## Релиз
 
-Зависимости и требования:
+Для публикации новой версии:
 
-- Foundry VTT v12-v13
-- система Pathfinder 2e
+1. Обновить `version` в `module.json`.
+2. Закоммитить изменения и отправить их в GitHub.
+3. Создать и отправить тег вида `vX.Y.Z`, например `v0.3.0`.
+4. GitHub Actions соберет `module.json` и `pf2e-eliott-tools.zip`, затем опубликует release.
+
+В pack-папках в git должны оставаться только данные готовых компендиумов:
+
+```text
+packs/*/*.ldb
+packs/*/CURRENT
+packs/*/MANIFEST-*
+```
+
+Временные файлы Foundry/LevelDB не нужны в репозитории:
+
+```text
+packs/*/LOCK
+packs/*/LOG
+packs/*/LOG.old
+packs/*/*.log
+```
