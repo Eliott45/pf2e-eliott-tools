@@ -17,9 +17,14 @@
   tools.features ??= {};
   tools.features.criticalDeckTranslation = {
     onInit,
+    onReady,
   };
 
   function onInit() {
+    installRollTableDrawPatch();
+  }
+
+  function onReady() {
     installRollTableDrawPatch();
   }
 
@@ -76,7 +81,12 @@
   }
 
   function isSystemCriticalDeckTable(table) {
-    return table?.pack === "pf2e.rollable-tables" && criticalTableIds.has(table.id);
+    if (table?.pack !== "pf2e.rollable-tables") return false;
+    if (criticalTableIds.has(table.id)) return true;
+
+    const normalizedName = normalizeName(table.name);
+    return normalizedName === "criticalhitdeck"
+      || normalizedName === "criticalfumbledeck";
   }
 
   function getResultName(result) {
@@ -112,7 +122,7 @@
     if (!pack) return null;
 
     const index = await pack.getIndex({ fields: ["name", featureFlagPath] });
-    const entriesBySourceName = new Map(
+    const entriesByResultName = new Map(
       index
         .map((entry) => {
           const sourceName = foundry.utils.getProperty(entry, featureFlagPath)?.sourceName;
@@ -121,21 +131,28 @@
         .filter(Boolean)
     );
 
-    if (entriesBySourceName.size === 0) {
-      const translations = await loadCriticalDeckTranslations();
-      const sourceNamesByTranslatedName = new Map(
-        Object.entries(translations ?? {})
-          .map(([sourceName, translation]) => [translation?.name, sourceName])
-          .filter(([translatedName]) => translatedName)
-      );
+    const translations = await loadCriticalDeckTranslations();
+    const sourceNamesByTranslatedName = new Map(
+      Object.entries(translations ?? {})
+        .map(([sourceName, translation]) => [translation?.name, sourceName])
+        .filter(([translatedName]) => translatedName)
+    );
 
-      for (const entry of index) {
-        const sourceName = sourceNamesByTranslatedName.get(entry.name);
-        if (sourceName) entriesBySourceName.set(sourceName, entry);
-      }
+    for (const entry of index) {
+      if (entry.name) entriesByResultName.set(entry.name, entry);
+
+      const sourceName = sourceNamesByTranslatedName.get(entry.name);
+      if (sourceName) entriesByResultName.set(sourceName, entry);
     }
 
-    translatedEntryCache = entriesBySourceName;
+    translatedEntryCache = entriesByResultName;
     return translatedEntryCache;
+  }
+
+  function normalizeName(value) {
+    return String(value ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "");
   }
 })();

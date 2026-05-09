@@ -11,14 +11,14 @@
       oathOfTheDefender.onInit();
     }
 
-    if (isSettingEnabled(settings.criticalDeckTranslationEnabled)) {
-      criticalDeckTranslation.onInit();
-    }
+    criticalDeckTranslation.onInit();
 
     console.log(`${logPrefix} | init`);
   });
 
   Hooks.once("ready", () => {
+    criticalDeckTranslation.onReady();
+
     console.log(`${logPrefix} | ready`);
   });
 
