@@ -7,6 +7,8 @@
     flagPath: `flags.${moduleId}.correction`,
     logPrefix: "PF2E Eliott Tools",
     settings: {
+      clearTargetsOnTurnEndEnabled: "clearTargetsOnTurnEndEnabled",
+      combatTrackerHpRingEnabled: "combatTrackerHpRingEnabled",
       oathOfTheDefenderEnabled: "oathOfTheDefenderEnabled",
       criticalDeckTranslationEnabled: "criticalDeckTranslationEnabled",
       shieldsOfTheSpiritEnabled: "shieldsOfTheSpiritEnabled",

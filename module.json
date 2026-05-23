@@ -27,13 +27,15 @@
   "bugs": "https://github.com/Eliott45/pf2e-eliott-tools/issues",
   "scripts": [
     "scripts/module/context.js",
+    "scripts/features/combat-tracker-enhancements.js",
     "scripts/features/champion/oath-of-the-defender.js",
     "scripts/features/spells/shields-of-the-spirit.js",
     "scripts/features/critical-deck-translation.js",
     "scripts/main.js"
   ],
   "styles": [
-    "styles/critical-deck-translation.css"
+    "styles/critical-deck-translation.css",
+    "styles/combat-tracker-enhancements.css"
   ],
   "packs": [
     {
