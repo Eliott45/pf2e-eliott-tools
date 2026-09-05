@@ -26,6 +26,7 @@
   Hooks.once("ready", () => {
     criticalDeckTranslation.onReady();
     worldClock.onReady();
+    void initializeFrightenedRecovery();
 
     console.log(`${logPrefix} | ready`);
   });
@@ -66,6 +67,31 @@
     }
   });
 
+  async function initializeFrightenedRecovery() {
+    try {
+      // Foundry caches the manifest's script list on the server. A browser reload
+      // can load a new main.js without loading a newly added manifest entry.
+      if (!tools.features.frightenedRecovery) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/frightened-recovery.js`);
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Could not load frightened-recovery.js"));
+          document.head.append(script);
+        });
+      }
+      const feature = tools.features.frightenedRecovery;
+      if (typeof feature?.onEndTurn !== "function" || typeof feature?.onUpdateCombat !== "function") {
+        throw new Error("Frightened recovery handlers are unavailable");
+      }
+      Hooks.on("updateCombat", (...args) => feature.onUpdateCombat(...args));
+      Hooks.on("pf2e.endTurn", (...args) => { void feature.onEndTurn(...args); });
+    } catch (error) {
+      console.error(`${logPrefix} | Could not initialize frightened recovery`, error);
+      ui.notifications.error("Не удалось загрузить автоматизацию испуга. Перезагрузите страницу Foundry.");
+    }
+  }
+
   function registerSettings() {
     game.settings.register(moduleId, settings.weaponFamiliarityEnabled, {
       name: "Включить фикс Weapon Familiarity",
@@ -80,6 +106,15 @@
     game.settings.register(moduleId, settings.preciousMaterialArmorEnabled, {
       name: "Включить эффекты материалов доспеха при критическом промахе",
       hint: "Критический промах безоружной атакой по надетому доспеху из холодного железа, серебра или суверенной стали накладывает тошноту 1 на атакующего с соответствующей уязвимостью. Учитывает иммунитет к тошноте.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true,
+    });
+
+    game.settings.register(moduleId, settings.frightenedRecoveryEnabled, {
+      name: "Автоматически уменьшать испуг в конце хода",
+      hint: "Уменьшает испуг (Frightened) на 1 в конце собственного хода персонажа или NPC; при 0 снимает состояние. Не изменяет состояния, закреплённые эффектами. Текстовые исключения вроде Remorseless Lash требуют ручного контроля. Не включайте одновременно с другой автоматизацией уменьшения испуга.",
       scope: "world",
       config: true,
       type: Boolean,
@@ -145,6 +180,11 @@
           {
             key: settings.preciousMaterialArmorEnabled,
             name: "Эффекты материалов при критическом промахе",
+            scope: "world",
+          },
+          {
+            key: settings.frightenedRecoveryEnabled,
+            name: "Уменьшение испуга в конце хода",
             scope: "world",
           },
         ],
@@ -225,6 +265,7 @@
     hideSettingRowForPlayers(root, settings.worldClockEnabled);
     hideSettingRowForPlayers(root, settings.preciousMaterialArmorEnabled);
     hideSettingRowForPlayers(root, settings.weaponFamiliarityEnabled);
+    hideSettingRowForPlayers(root, settings.frightenedRecoveryEnabled);
 
     for (const group of getSettingsGroups()) {
       const firstRow = findSettingRow(root, group.settings[0]?.key);
