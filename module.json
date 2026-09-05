@@ -29,6 +29,7 @@
     "scripts/module/context.js",
     "scripts/features/combat-tracker-enhancements.js",
     "scripts/features/world-clock.js",
+    "scripts/features/precious-material-armor.js",
     "scripts/features/champion/oath-of-the-defender.js",
     "scripts/features/spells/shields-of-the-spirit.js",
     "scripts/features/critical-deck-translation.js",

@@ -6,6 +6,7 @@
   const criticalDeckTranslation = tools.features.criticalDeckTranslation;
   const combatTrackerEnhancements = tools.features.combatTrackerEnhancements;
   const worldClock = tools.features.worldClock;
+  const preciousMaterialArmor = tools.features.preciousMaterialArmor;
 
   Hooks.once("init", () => {
     registerSettings();
@@ -44,6 +45,10 @@
   });
 
   Hooks.on("createChatMessage", (...args) => {
+    if (isSettingEnabled(settings.preciousMaterialArmorEnabled)) {
+      void preciousMaterialArmor.onCreateChatMessage(...args);
+    }
+
     if (isSettingEnabled(settings.oathOfTheDefenderEnabled)) {
       void oathOfTheDefender.onCreateChatMessage(...args);
     }
@@ -60,6 +65,15 @@
   });
 
   function registerSettings() {
+    game.settings.register(moduleId, settings.preciousMaterialArmorEnabled, {
+      name: "Включить эффекты материалов доспеха при критическом промахе",
+      hint: "Критический промах безоружной атакой по надетому доспеху из холодного железа, серебра или суверенной стали накладывает тошноту 1 на атакующего с соответствующей уязвимостью. Учитывает иммунитет к тошноте.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true,
+    });
+
     game.settings.register(moduleId, settings.clearTargetsOnTurnEndEnabled, {
       name: "Сбрасывать цели в конце хода",
       hint: "Автоматически снимает все ваши цели при смене хода или раунда в боевом трекере. Настройка индивидуальна для каждого игрока.",
@@ -147,6 +161,16 @@
         ],
       },
       {
+        title: "Материалы доспехов",
+        settings: [
+          {
+            key: settings.preciousMaterialArmorEnabled,
+            name: "Эффекты материалов при критическом промахе",
+            scope: "world",
+          },
+        ],
+      },
+      {
         title: "Автоматизация заклинаний",
         settings: [
           {
@@ -182,6 +206,7 @@
     root.querySelectorAll(".pf2e-eliott-settings-heading").forEach((heading) => heading.remove());
     hideSettingRowForPlayers(root, settings.combatTrackerHpRingEnabled);
     hideSettingRowForPlayers(root, settings.worldClockEnabled);
+    hideSettingRowForPlayers(root, settings.preciousMaterialArmorEnabled);
 
     for (const group of getSettingsGroups()) {
       const firstRow = findSettingRow(root, group.settings[0]?.key);

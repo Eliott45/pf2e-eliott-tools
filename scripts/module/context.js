@@ -10,6 +10,7 @@
       clearTargetsOnTurnEndEnabled: "clearTargetsOnTurnEndEnabled",
       combatTrackerHpRingEnabled: "combatTrackerHpRingEnabled",
       worldClockEnabled: "worldClockEnabled",
+      preciousMaterialArmorEnabled: "preciousMaterialArmorEnabled",
       oathOfTheDefenderEnabled: "oathOfTheDefenderEnabled",
       criticalDeckTranslationEnabled: "criticalDeckTranslationEnabled",
       shieldsOfTheSpiritEnabled: "shieldsOfTheSpiritEnabled",
