@@ -11,6 +11,7 @@
       combatTrackerHpRingEnabled: "combatTrackerHpRingEnabled",
       worldClockEnabled: "worldClockEnabled",
       preciousMaterialArmorEnabled: "preciousMaterialArmorEnabled",
+      weaponFamiliarityEnabled: "weaponFamiliarityEnabled",
       oathOfTheDefenderEnabled: "oathOfTheDefenderEnabled",
       criticalDeckTranslationEnabled: "criticalDeckTranslationEnabled",
       shieldsOfTheSpiritEnabled: "shieldsOfTheSpiritEnabled",

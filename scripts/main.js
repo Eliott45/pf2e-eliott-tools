@@ -7,9 +7,11 @@
   const combatTrackerEnhancements = tools.features.combatTrackerEnhancements;
   const worldClock = tools.features.worldClock;
   const preciousMaterialArmor = tools.features.preciousMaterialArmor;
+  const weaponFamiliarity = tools.features.weaponFamiliarity;
 
   Hooks.once("init", () => {
     registerSettings();
+    weaponFamiliarity.onInit();
     worldClock.onInit();
 
     if (isSettingEnabled(settings.oathOfTheDefenderEnabled)) {
@@ -65,6 +67,16 @@
   });
 
   function registerSettings() {
+    game.settings.register(moduleId, settings.weaponFamiliarityEnabled, {
+      name: "Включить фикс Weapon Familiarity",
+      hint: "Знакомство с оружием родословной учитывает повышенное владение конкретной группой оружия: например, орочий продвинутый топор получает мастера воинских топоров. После изменения требуется перезагрузка мира в браузере.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true,
+      requiresReload: true,
+    });
+
     game.settings.register(moduleId, settings.preciousMaterialArmorEnabled, {
       name: "Включить эффекты материалов доспеха при критическом промахе",
       hint: "Критический промах безоружной атакой по надетому доспеху из холодного железа, серебра или суверенной стали накладывает тошноту 1 на атакующего с соответствующей уязвимостью. Учитывает иммунитет к тошноте.",
@@ -123,6 +135,21 @@
   function getSettingsGroups() {
     return [
       {
+        title: "Автоматизация листа персонажа",
+        settings: [
+          {
+            key: settings.weaponFamiliarityEnabled,
+            name: "Фикс Weapon Familiarity",
+            scope: "world",
+          },
+          {
+            key: settings.preciousMaterialArmorEnabled,
+            name: "Эффекты материалов при критическом промахе",
+            scope: "world",
+          },
+        ],
+      },
+      {
         title: "Время мира",
         settings: [
           {
@@ -156,16 +183,6 @@
             key: settings.oathOfTheDefenderEnabled,
             name: "Фикс Oath of the Defender",
             hint: "Исправляет ауру чемпиона Oath of the Defender: сопротивление применяется только к самому большому подходящему инстансу урона.",
-            scope: "world",
-          },
-        ],
-      },
-      {
-        title: "Материалы доспехов",
-        settings: [
-          {
-            key: settings.preciousMaterialArmorEnabled,
-            name: "Эффекты материалов при критическом промахе",
             scope: "world",
           },
         ],
@@ -207,6 +224,7 @@
     hideSettingRowForPlayers(root, settings.combatTrackerHpRingEnabled);
     hideSettingRowForPlayers(root, settings.worldClockEnabled);
     hideSettingRowForPlayers(root, settings.preciousMaterialArmorEnabled);
+    hideSettingRowForPlayers(root, settings.weaponFamiliarityEnabled);
 
     for (const group of getSettingsGroups()) {
       const firstRow = findSettingRow(root, group.settings[0]?.key);
