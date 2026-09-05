@@ -1,0 +1,19 @@
+#world-clock .eliott-world-clock-controls {
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#world-clock .eliott-world-clock-toggle {
+  flex: 0 0 auto;
+  padding-inline: 0.75rem;
+}
+
+#world-clock .eliott-world-clock-toggle[aria-pressed="true"] {
+  border-color: var(--color-border-highlight, #ff6400);
+}
+
+#world-clock .eliott-world-clock-status {
+  font-size: 0.85em;
+  line-height: 1.3;
+  text-align: center;
+}

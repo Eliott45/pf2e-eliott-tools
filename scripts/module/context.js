@@ -9,6 +9,7 @@
     settings: {
       clearTargetsOnTurnEndEnabled: "clearTargetsOnTurnEndEnabled",
       combatTrackerHpRingEnabled: "combatTrackerHpRingEnabled",
+      worldClockEnabled: "worldClockEnabled",
       oathOfTheDefenderEnabled: "oathOfTheDefenderEnabled",
       criticalDeckTranslationEnabled: "criticalDeckTranslationEnabled",
       shieldsOfTheSpiritEnabled: "shieldsOfTheSpiritEnabled",

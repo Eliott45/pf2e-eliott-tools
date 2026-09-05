@@ -28,6 +28,7 @@
   "scripts": [
     "scripts/module/context.js",
     "scripts/features/combat-tracker-enhancements.js",
+    "scripts/features/world-clock.js",
     "scripts/features/champion/oath-of-the-defender.js",
     "scripts/features/spells/shields-of-the-spirit.js",
     "scripts/features/critical-deck-translation.js",
@@ -35,7 +36,8 @@
   ],
   "styles": [
     "styles/critical-deck-translation.css",
-    "styles/combat-tracker-enhancements.css"
+    "styles/combat-tracker-enhancements.css",
+    "styles/world-clock.css"
   ],
   "packs": [
     {

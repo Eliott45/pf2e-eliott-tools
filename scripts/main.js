@@ -5,9 +5,11 @@
   const shieldsOfTheSpirit = tools.features.spells.shieldsOfTheSpirit;
   const criticalDeckTranslation = tools.features.criticalDeckTranslation;
   const combatTrackerEnhancements = tools.features.combatTrackerEnhancements;
+  const worldClock = tools.features.worldClock;
 
   Hooks.once("init", () => {
     registerSettings();
+    worldClock.onInit();
 
     if (isSettingEnabled(settings.oathOfTheDefenderEnabled)) {
       oathOfTheDefender.onInit();
@@ -20,6 +22,7 @@
 
   Hooks.once("ready", () => {
     criticalDeckTranslation.onReady();
+    worldClock.onReady();
 
     console.log(`${logPrefix} | ready`);
   });
@@ -106,6 +109,16 @@
   function getSettingsGroups() {
     return [
       {
+        title: "Время мира",
+        settings: [
+          {
+            key: settings.worldClockEnabled,
+            name: "Включить автоматический ход времени",
+            scope: "world",
+          },
+        ],
+      },
+      {
         title: "Бой",
         settings: [
           {
@@ -168,6 +181,7 @@
 
     root.querySelectorAll(".pf2e-eliott-settings-heading").forEach((heading) => heading.remove());
     hideSettingRowForPlayers(root, settings.combatTrackerHpRingEnabled);
+    hideSettingRowForPlayers(root, settings.worldClockEnabled);
 
     for (const group of getSettingsGroups()) {
       const firstRow = findSettingRow(root, group.settings[0]?.key);
