@@ -1,0 +1,91 @@
+.eliott-bestiary { --eb-bg: #161e22; --eb-panel: #1d282e; --eb-line: #34434b; --eb-text: #e7ede8; --eb-muted: #a0b2b5; --eb-accent: #91d6bd; min-width: 650px; min-height: 480px; color: var(--eb-text); }
+.eliott-bestiary .window-content { padding: 0; overflow: hidden; background: var(--eb-bg); color: var(--eb-text); }
+.eliott-bestiary .eb-shell { display: flex; flex-direction: column; height: 100%; overflow: hidden; font: 14px/1.5 var(--font-primary, sans-serif); }
+.eliott-bestiary .eb-shell.is-dragover { outline: 3px solid var(--eb-accent); outline-offset: -4px; }
+.eliott-bestiary :is(h1,h2,h3,h4,p) { margin: 0; padding: 0; border: 0; color: inherit; }
+.eliott-bestiary :where(.eb-shell) button { cursor: pointer; width: auto; height: auto; min-height: 30px; margin: 0; padding: 6px 10px; border: 1px solid var(--eb-line); border-radius: 6px; background: #26353c; color: var(--eb-text); font: inherit; line-height: 1.3; box-shadow: none; white-space: normal; }
+.eliott-bestiary :where(.eb-shell) button:hover { background: #354a51; border-color: var(--eb-accent); }
+.eliott-bestiary :where(.eb-shell) :is(button,a,input,textarea):focus-visible { outline: 2px solid var(--eb-accent); outline-offset: 2px; }
+.eliott-bestiary :where(.eb-shell) button:disabled { opacity: .5; cursor: wait; }
+.eliott-bestiary .eb-shell, .eliott-bestiary .eb-shell * { box-sizing: border-box; }
+.eliott-bestiary .eb-top { display: flex; justify-content: space-between; gap: 20px; padding: 22px 26px; border-bottom: 1px solid var(--eb-line); background: linear-gradient(115deg, #263b3b, #192329 75%); }
+.eliott-bestiary .eb-eyebrow { color: var(--eb-accent); font-size: 10px; font-weight: 700; letter-spacing: 1.8px; }
+.eliott-bestiary h1 { font-size: 25px; font-weight: 650; margin: 3px 0 4px; }
+.eliott-bestiary .eb-top p { color: var(--eb-muted); font-size: 12px; }
+.eliott-bestiary .eb-top-actions { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 9px; }
+.eliott-bestiary .eb-counter { color: var(--eb-muted); font-size: 12px; }
+.eliott-bestiary .eb-body { display: grid; grid-template-columns: 270px minmax(0, 1fr); flex: 1; min-height: 0; }
+.eliott-bestiary .eb-sidebar { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #192328; border-right: 1px solid var(--eb-line); }
+.eliott-bestiary .eb-search { display: flex; align-items: center; gap: 10px; margin: 16px; color: var(--eb-muted); }
+.eliott-bestiary input:not([type=checkbox]), .eliott-bestiary textarea { width: 100%; min-width: 0; background: #111b20; border: 1px solid var(--eb-line); border-radius: 6px; color: var(--eb-text); padding: 8px 10px; font: inherit; box-shadow: none; }
+.eliott-bestiary input::placeholder, .eliott-bestiary textarea::placeholder { color: #82979c; }
+.eliott-bestiary .eb-add { margin: 0 16px 14px; }
+.eliott-bestiary .eb-add > button { width: 100%; background: #31584d; border-color: #4b8270; }
+.eliott-bestiary .eb-add > button + button { margin-top: 6px; background: transparent; border-color: var(--eb-line); font-size: 11px; }
+.eliott-bestiary .eb-add p { color: var(--eb-muted); font-size: 11px; margin-top: 7px; }
+.eliott-bestiary .eb-check { display: flex; gap: 7px; align-items: center; font-size: 11px; margin-top: 10px; color: var(--eb-muted); }
+.eliott-bestiary .eb-check input { margin: 0; width: 14px; height: 14px; accent-color: var(--eb-accent); }
+.eliott-bestiary .eb-list { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 5px; flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0; min-height: 0; padding: 0 8px 12px; }
+.eliott-bestiary .eb-creature { display: grid; grid-template-columns: 45px minmax(0,1fr); align-items: center; justify-content: start; gap: 12px; flex: 0 0 auto; width: 100%; min-width: 0; margin: 0; padding: 10px; text-align: left; border: 1px solid transparent; background: transparent; }
+.eliott-bestiary .eb-creature.is-selected { background: #2a403d; border-color: #56796b; }
+.eliott-bestiary .eb-creature img { width: 45px; height: 45px; object-fit: contain; background: #10191e; border: 0; border-radius: 7px; }
+.eliott-bestiary .eb-creature span { min-width: 0; }
+.eliott-bestiary .eb-creature strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
+.eliott-bestiary .eb-creature small { display: block; font-size: 10px; color: var(--eb-muted); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.eliott-bestiary .eb-sidebar-footer { font-size: 10px; color: var(--eb-muted); border-top: 1px solid var(--eb-line); padding: 12px 16px; }
+.eliott-bestiary .eb-list-empty { padding: 20px 12px; color: var(--eb-muted); }
+.eliott-bestiary .eb-detail { min-width: 0; overflow-y: auto; padding: 25px 28px; scrollbar-gutter: stable; }
+.eliott-bestiary .eb-card-header { display: flex; gap: 24px; align-items: flex-start; margin-bottom: 20px; }
+.eliott-bestiary .eb-portrait { flex: 0 0 126px; display: flex; flex-direction: column; gap: 8px; }
+.eliott-bestiary .eb-portrait > img { width: 126px; height: 148px; object-fit: contain; background: radial-gradient(ellipse, #374b4c, #111b20); border: 1px solid var(--eb-line); border-radius: 10px; }
+.eliott-bestiary .eb-identity { flex: 1; min-width: 0; }
+.eliott-bestiary h2 { font-size: 28px; line-height: 1.2; margin: 8px 0 12px; overflow-wrap: anywhere; }
+.eliott-bestiary .eb-alias { display: block; color: var(--eb-muted); font-size: 11px; margin: 12px 0 8px; }
+.eliott-bestiary .eb-alias input { margin-top: 5px; height: 32px; }
+.eliott-bestiary .eb-hint { color: var(--eb-muted); font-size: 11px; }
+.eliott-bestiary .eb-card-actions { display: flex; flex-wrap: wrap; gap: 7px; padding-bottom: 20px; border-bottom: 1px solid var(--eb-line); }
+.eliott-bestiary .eb-card-actions button { font-size: 11px; }
+.eliott-bestiary .eb-danger { color: #f0b6af; background: #39282a; border-color: #755050; }
+.eliott-bestiary .eb-danger:hover { background: #573236; border-color: #d98f86; }
+.eliott-bestiary .eb-top-actions .eb-danger { font-size: 11px; }
+.eliott-bestiary .eb-section { margin-top: 24px; }
+.eliott-bestiary .eb-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.eliott-bestiary h3 { font-size: 16px; font-weight: 650; }
+.eliott-bestiary .eb-section-title button { background: transparent; border: 0; color: var(--eb-accent); font-size: 11px; }
+.eliott-bestiary .eb-fields { display: grid; gap: 9px; }
+.eliott-bestiary .eb-defense-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.eliott-bestiary .eb-field { background: var(--eb-panel); border: 1px solid var(--eb-line); border-radius: 8px; padding: 13px 15px; min-width: 0; }
+.eliott-bestiary .eb-field.is-hidden { border-style: dashed; }
+.eliott-bestiary .eb-field-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+.eliott-bestiary h4 { font-size: 12px; color: var(--eb-muted); line-height: 1.5; }
+.eliott-bestiary .eb-value { font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.eliott-bestiary .eb-fact-list { grid-column: 1 / -1; padding: 10px 15px; }
+.eliott-bestiary .eb-fact-list > h4 { margin-bottom: 3px; }
+.eliott-bestiary .eb-fact-list > ul { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
+.eliott-bestiary .eb-fact-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; margin: 0; padding: 8px 0; }
+.eliott-bestiary .eb-fact-row + .eb-fact-row { border-top: 1px solid var(--eb-line); }
+.eliott-bestiary .eb-fact-row > .eb-value { min-width: 0; }
+.eliott-bestiary .eb-fact-row.is-hidden > .eb-value { color: var(--eb-muted); }
+.eliott-bestiary .eb-spell-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+.eliott-bestiary .eb-spell-card { padding: 0; }
+.eliott-bestiary .eb-spell-toggle { flex: 0 0 28px; padding: 5px; background: transparent; border-color: transparent; color: var(--eb-accent); }
+.eliott-bestiary .eb-spell-toggle > i { margin: 0; }
+.eliott-bestiary .eb-spell-description { margin: 0 14px 12px; padding-top: 10px; border-top: 1px solid var(--eb-line); }
+.eliott-bestiary .eb-spell-name { flex: 1; min-width: 0; }
+.eliott-bestiary .eb-spell-link { display: inline; padding: 2px 5px; border: 1px solid var(--eb-line); border-radius: 3px; background: #26353c; color: var(--eb-accent); white-space: normal; overflow-wrap: anywhere; font-size: 13px; line-height: 1.8; box-decoration-break: clone; }
+.eliott-bestiary .eb-spell-link:hover { background: #354a51; color: #dcfff0; text-shadow: none; border-color: var(--eb-accent); }
+.eliott-bestiary .eb-spell-rank { flex-shrink: 0; color: var(--eb-muted); font-size: 12px; }
+.eliott-bestiary .eb-visibility { flex-shrink: 0; min-height: 22px; font-size: 10px; padding: 3px 6px; color: #b6c1c5; background: #263138; border-color: #465259; }
+.eliott-bestiary .eb-visibility.is-open { color: #b2eed3; background: #284a3f; border-color: #4a7f69; }
+.eliott-bestiary .eb-notes textarea { resize: vertical; min-height: 110px; line-height: 1.6; }
+.eliott-bestiary .eb-note-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; }
+.eliott-bestiary .eb-note-actions button { font-size: 12px; background: #31584d; }
+.eliott-bestiary .eb-empty { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 35px; }
+.eliott-bestiary .eb-empty > i { font-size: 60px; color: #76a494; margin-bottom: 30px; }
+.eliott-bestiary .eb-empty p { max-width: 420px; color: var(--eb-muted); font-size: 14px; line-height: 1.8; }
+.eliott-bestiary .eb-unknown { text-align: center; padding: 28px 20px; background: #1d282c; border: 1px dashed var(--eb-line); border-radius: 8px; }
+.eliott-bestiary .eb-unknown i { color: var(--eb-accent); font-size: 24px; margin-bottom: 12px; }
+.eliott-bestiary .eb-unknown p { color: var(--eb-muted); margin-top: 8px; font-size: 12px; }
+.eliott-bestiary .eb-status { padding: 9px 18px; color: var(--eb-muted); border-top: 1px solid var(--eb-line); font-size: 10px; background: #192328; }
+.eliott-bestiary-launch { margin: 6px 0; width: 100%; }
+@media (max-width: 850px) { .eliott-bestiary .eb-body { grid-template-columns: 225px minmax(0,1fr); } .eliott-bestiary .eb-detail { padding: 18px; } .eliott-bestiary .eb-defense-grid { grid-template-columns: 1fr; } .eliott-bestiary .eb-portrait { flex-basis: 86px; } .eliott-bestiary .eb-portrait > img { width: 86px; height: 110px; } .eliott-bestiary .eb-top { padding: 16px; } }

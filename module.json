@@ -35,12 +35,17 @@
     "scripts/features/champion/oath-of-the-defender.js",
     "scripts/features/spells/shields-of-the-spirit.js",
     "scripts/features/critical-deck-translation.js",
+    "scripts/features/bestiary/model.js",
+    "scripts/features/bestiary/store.js",
+    "scripts/features/bestiary/application.js",
+    "scripts/features/bestiary/index.js",
     "scripts/main.js"
   ],
   "styles": [
     "styles/critical-deck-translation.css",
     "styles/combat-tracker-enhancements.css",
-    "styles/world-clock.css"
+    "styles/world-clock.css",
+    "styles/bestiary.css"
   ],
   "packs": [
     {

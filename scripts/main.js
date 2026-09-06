@@ -27,6 +27,7 @@
     criticalDeckTranslation.onReady();
     worldClock.onReady();
     void initializeFrightenedRecovery();
+    void initializeBestiary();
 
     console.log(`${logPrefix} | ready`);
   });
@@ -67,6 +68,36 @@
     }
   });
 
+  async function initializeBestiary() {
+    try {
+      if (!tools.features.bestiary?.initialize) {
+        for (const file of ["model", "store", "application", "index"]) {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/bestiary/${file}.js`);
+            script.onload = resolve;
+            script.onerror = () => reject(new Error(`Could not load bestiary/${file}.js`));
+            document.head.append(script);
+          });
+        }
+      }
+      const href = foundry.utils.getRoute(`modules/${moduleId}/styles/bestiary.css`);
+      if (!document.querySelector(`link[href="${href}"]`)) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = href;
+        document.head.append(link);
+      }
+      tools.features.bestiary.initialize();
+      // Directory rendering may precede this fallback loader on a cached manifest.
+      ui.actors?.render();
+      ui.journal?.render();
+    } catch (error) {
+      console.error(`${logPrefix} | Could not initialize bestiary`, error);
+      ui.notifications.error("Не удалось загрузить бестиарий. Перезагрузите страницу Foundry.");
+    }
+  }
+
   async function initializeFrightenedRecovery() {
     try {
       // Foundry caches the manifest's script list on the server. A browser reload
@@ -93,6 +124,12 @@
   }
 
   function registerSettings() {
+    game.keybindings.register(moduleId, "bestiary", {
+      name: "Открыть бестиарий группы",
+      editable: [{ key: "KeyB", modifiers: ["Shift"] }],
+      onDown: () => { tools.bestiary?.open(); return true; },
+    });
+
     game.settings.register(moduleId, settings.weaponFamiliarityEnabled, {
       name: "Включить фикс Weapon Familiarity",
       hint: "Знакомство с оружием родословной учитывает повышенное владение конкретной группой оружия: например, орочий продвинутый топор получает мастера воинских топоров. После изменения требуется перезагрузка мира в браузере.",

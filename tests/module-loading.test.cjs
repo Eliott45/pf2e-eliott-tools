@@ -10,7 +10,7 @@ const mainSource = read("scripts/main.js");
 const recoverySource = read("scripts/features/frightened-recovery.js");
 const flush = () => new Promise(setImmediate);
 
-function setup({ loaded = false } = {}) {
+function setup({ loaded = false, bestiaryLoaded = true } = {}) {
   const hooks = new Map();
   const scripts = [];
   const errors = [];
@@ -24,8 +24,8 @@ function setup({ loaded = false } = {}) {
   };
   const context = vm.createContext({
     Hooks: { on: register, once: register },
-    game: { settings: { register: (_id, key, value) => settings.set(key, value), get: () => true } },
-    document: { createElement: (name) => ({ tagName: name }), head: { append: (script) => scripts.push(script) } },
+    game: { keybindings: { register: () => {} }, settings: { register: (_id, key, value) => settings.set(key, value), get: () => true } },
+    document: { querySelector: () => ({}), createElement: (name) => ({ tagName: name }), head: { append: (script) => scripts.push(script) } },
     foundry: { utils: { getRoute: (path) => `/foundry/${path}` } },
     console: { log: () => {}, error: (...args) => errors.push(args) },
     ui: { notifications: { error: (message) => notifications.push(message) } },
@@ -38,7 +38,9 @@ function setup({ loaded = false } = {}) {
     combatTrackerEnhancements: { onUpdateCombat: () => trackerUpdates++ },
     worldClock: { onInit: noOp, onReady: noOp }, preciousMaterialArmor: {},
     weaponFamiliarity: { onInit: noOp },
+    bestiary: { initialize: noOp },
   };
+  if (!bestiaryLoaded) delete context.pf2eEliottTools.features.bestiary;
   if (loaded) vm.runInContext(recoverySource, context);
   vm.runInContext(mainSource, context);
   const emit = (name, ...args) => hooks.get(name)?.forEach((fn) => fn(...args));
@@ -99,4 +101,27 @@ test("a script that fails to initialize reports the problem rather than installi
   assert.equal(env.errors.length, 1);
   assert.equal(env.notifications.length, 1);
   assert.equal(env.hooks.has("pf2e.endTurn"), false);
+});
+
+test("cached manifest loads bestiary dependencies in order before initialization", async () => {
+  const env = setup({ loaded: true, bestiaryLoaded: false });
+  env.emit("ready");
+  for (const [index, file] of ["model", "store", "application", "index"].entries()) {
+    assert.equal(env.scripts.length, index + 1);
+    assert.equal(env.scripts[index].src, `/foundry/modules/pf2e-eliott-tools/scripts/features/bestiary/${file}.js`);
+    if (file === "index") env.context.pf2eEliottTools.features.bestiary = { initialize: () => env.notifications.push("initialized") };
+    env.scripts[index].onload();
+    await flush();
+  }
+  assert.deepEqual(env.notifications, ["initialized"]);
+  assert.deepEqual(env.errors, []);
+});
+
+test("a missing bestiary dependency stops its load chain and preserves other features", async () => {
+  const env = setup({ loaded: true, bestiaryLoaded: false });
+  env.emit("ready"); env.scripts[0].onerror(); await flush();
+  assert.equal(env.scripts.length, 1);
+  assert.match(env.notifications[0], /бестиарий/);
+  env.emit("updateCombat", {}, { turn: 1 });
+  assert.equal(env.trackerUpdates, 1);
 });
