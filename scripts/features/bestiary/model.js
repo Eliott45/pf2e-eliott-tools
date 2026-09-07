@@ -5,7 +5,7 @@
   const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   // Descriptions are deliberately plain text: no secret HTML sections, UUID links,
   // executable markup or enrichment which could expose the original actor.
-  function plain(value, { localize = true } = {}) {
+  function localizedText(value, localize) {
     let text = String(value ?? "");
     // PF2e glossary descriptions can contain further localization references.
     for (let depth = 0; localize && depth < 8 && /@Localize\[/.test(text); depth++) {
@@ -15,6 +15,10 @@
       });
     }
     if (localize) text = text.replace(/@Localize\[[^\]]+\]/g, "Описание недоступно.");
+    return text;
+  }
+  function plain(value, { localize = true } = {}) {
+    const text = localizedText(value, localize);
     return text
       .replace(/<section\b[^>]*class=["'][^"']*\bsecret\b[^"']*["'][^>]*>[\s\S]*?<\/section>/gi, "")
       .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
@@ -28,6 +32,28 @@
       .replace(/<[^>]*>/g, "")
       .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
       .replace(/\n{3,}/g, "\n\n").trim();
+  }
+  function description(value, { localize = true } = {}) {
+    const originals = [];
+    const safeText = localizedText(value, localize)
+      .replace(/<section\b[^>]*class=["'][^"']*\bsecret\b[^"']*["'][^>]*>[\s\S]*?<\/section>/gi, "")
+      .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, "");
+    const text = safeText.replace(/<details\b[^>]*>\s*<summary\b[^>]*>\s*(?:Оригинал|Original)\s*<\/summary>([\s\S]*?)<\/details>/gi, (_match, original) => {
+      originals.push(plain(original, { localize }));
+      return "";
+    });
+    let translated = plain(text, { localize });
+    // Older snapshots flattened Babele's summary into "ОригиналA redcap...".
+    // Only recognize a line-leading marker followed by English, not ordinary prose.
+    if (!originals.length) {
+      const marker = /(?:^|\n)[ \t]*Оригинал(?=[:\s]*[A-Za-z])[:\s]*/.exec(translated);
+      if (marker) {
+        originals.push(translated.slice(marker.index + marker[0].length).trim());
+        translated = translated.slice(0, marker.index).trim();
+      }
+    }
+    const original = originals.filter(Boolean).join("\n\n");
+    return { value: translated, ...(original ? { original } : {}) };
   }
   const signed = (v) => Number(v) >= 0 ? `+${v}` : String(v);
   const presentationVersion = 3;
@@ -45,7 +71,7 @@
   function spellField(item) {
     const data = item.system ?? {};
     const origin = item._stats?.compendiumSource ?? item._source?._stats?.compendiumSource ?? item.flags?.core?.sourceId ?? item.uuid;
-    return { id: `item-${item.id ?? item._id}`, group: "spells", label: plain(item.name), value: plain(data.description?.value || "Описание отсутствует.", { localize: false }),
+    return { id: `item-${item.id ?? item._id}`, group: "spells", label: plain(item.name), ...description(data.description?.value || "Описание отсутствует.", { localize: false }),
       spell: { rank: item.rank ?? data.location?.heightenedLevel ?? data.level?.value ?? 0,
         // Only a standalone compendium spell may be opened by players.
         uuid: typeof origin === "string" && origin.startsWith("Compendium.") ? origin : null } };
@@ -83,7 +109,7 @@
     const source = actor._source?.system ?? s;
     const fields = [];
     const add = (id, group, label, value) => {
-      if (value !== undefined && value !== null && value !== "") fields.push({ id, group, label: plain(label), value: plain(value, { localize: false }) });
+      if (value !== undefined && value !== null && value !== "") fields.push({ id, group, label: plain(label), ...description(value, { localize: false }) });
     };
     const list = (table, values = []) => values.map((v) => localize(table, v)).join(", ");
     add("level", "overview", "Уровень", s.details?.level?.value);
@@ -143,7 +169,8 @@
       version: 1,
       name: entry.snapshot.name,
       img: entry.revealed.includes("image") ? entry.snapshot.img : "icons/svg/mystery-man.svg",
-      fields: entry.snapshot.fields.filter((f) => entry.revealed.includes(f.id)).map(({ id, group, label, value, spell }) => ({ id, group, label, value,
+      fields: entry.snapshot.fields.filter((f) => entry.revealed.includes(f.id)).map(({ id, group, label, value, original, spell }) => ({ id, group, label, value,
+        ...(original ? { original } : {}),
         ...(spell ? { spell: { rank: spell.rank, uuid: typeof spell.uuid === "string" && spell.uuid.startsWith("Compendium.") ? spell.uuid : null } } : {}) })),
     };
   }
@@ -151,8 +178,8 @@
     const valid = new Set(["name", "image", ...next.fields.map((f) => f.id)]);
     // Changed facts return to hidden: a refresh must never silently publish new text.
     const unchanged = (id) => id === "image" ? entry.snapshot.img === next.img : id === "name" ? entry.snapshot.name === next.name :
-      entry.snapshot.fields.some((old) => old.id === id && next.fields.some((f) => f.id === id && f.label === old.label && f.value === old.value && JSON.stringify(f.spell) === JSON.stringify(old.spell)));
+      entry.snapshot.fields.some((old) => old.id === id && next.fields.some((f) => f.id === id && f.label === old.label && f.value === old.value && f.original === old.original && JSON.stringify(f.spell) === JSON.stringify(old.spell)));
     return { ...entry, snapshot: next, revealed: entry.revealed.filter((id) => valid.has(id) && unchanged(id)) };
   }
-  feature.model = { groups, escape, plain, snapshot, project, refresh, spellField, upgrade, presentationVersion };
+  feature.model = { groups, escape, plain, description, snapshot, project, refresh, spellField, upgrade, presentationVersion };
 })();

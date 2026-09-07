@@ -22,9 +22,11 @@
     return game.i18n.localize(key);
   }
   function displayField(field) {
-    return { ...field, label: feature.model.plain(field.label), value: field.id === "traits" || field.id.startsWith("traits-")
+    const text = feature.model.description(field.value);
+    const original = [text.original, feature.model.plain(field.original)].filter(Boolean).join("\n\n");
+    return { ...field, ...text, ...(original ? { original } : {}), label: feature.model.plain(field.label), value: field.id === "traits" || field.id.startsWith("traits-")
       ? field.value.split(",").map((trait) => localize("creatureTraits", trait.trim())).join(", ")
-      : feature.model.plain(field.value) };
+      : text.value };
   }
   function serialize(operation) {
     const result = pending.then(operation);

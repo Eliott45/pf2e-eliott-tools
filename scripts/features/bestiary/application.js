@@ -31,10 +31,12 @@
     async _renderHTML() { return this.content(); }
     _replaceHTML(html, content) {
       const scroll = [...content.querySelectorAll("[data-scroll]")].map((node) => [node.dataset.scroll, node.scrollTop]);
+      const originals = new Set([...content.querySelectorAll("details[data-original][open]")].map((node) => node.dataset.original));
       const input = content.querySelector("[data-search]");
       const focused = input && input === document.activeElement;
       const selection = focused ? [input.selectionStart, input.selectionEnd] : null;
       content.innerHTML = html;
+      for (const node of content.querySelectorAll("details[data-original]")) node.open = originals.has(node.dataset.original);
       for (const [key, top] of scroll) content.querySelector(`[data-scroll="${key}"]`)?.scrollTo(0, top);
       if (focused) {
         const next = content.querySelector("[data-search]");
@@ -56,7 +58,7 @@
           <nav class="eb-list" data-scroll="list" aria-label="Существа">${entries.map((row) => `<button type="button" class="eb-creature ${row.doc.id === this.selected ? "is-selected" : ""}" data-command="select" data-id="${e(row.doc.id)}" aria-pressed="${row.doc.id === this.selected}"><img src="${e(row.display.img)}" alt=""><span><strong>${e(row.display.name)}</strong><small>${e(traits(row.display) || "Признаки пока неизвестны")}</small></span></button>`).join("") || `<p class="eb-list-empty">${query ? "Ничего не найдено" : "Здесь появятся ваши встречи"}</p>`}</nav>
           <footer class="eb-sidebar-footer"><i class="fa-solid fa-book-bookmark" aria-hidden="true"></i> Знания сохраняются между сценами</footer></aside>
           <main class="eb-detail" data-scroll="detail">${entry ? this.card(entry) : `<div class="eb-empty"><i class="fa-solid fa-dragon" aria-hidden="true"></i><span class="eb-eyebrow">ПЕРВАЯ ВСТРЕЧА</span><h2>${query ? "Попробуйте другое название" : "У каждого чудовища есть история"}</h2><p>${this.gm ? "Перетащите существо в это окно. Его карточка сохранится здесь, даже если исходного актора больше не будет." : "Мастер добавит встреченных существ и откроет то, что удалось о них узнать."}</p></div>`}</main></div>
-        <footer class="eb-status">${this.busy ? "Сохраняем…" : this.gm ? "Имя видно всегда. В новой записи открыт также портрет; остальные сведения раскрываются отдельно." : "Заметки группы доступны всем участникам."}</footer></div>`;
+        <footer class="eb-status">${this.busy ? "Сохраняем…" : this.gm ? "Кнопки «Скрыто» раскрывают сведения группе." : "Заметки группы доступны всем участникам."}</footer></div>`;
     }
     reveal(id, revealed, label = { name: "Имя", image: "Портрет" }[id]) {
       return this.gm ? button("reveal", `<i class="fa-solid ${revealed ? "fa-eye" : "fa-eye-slash"}" aria-hidden="true"></i> ${revealed ? "Открыто" : "Скрыто"}`, `class="eb-visibility ${revealed ? "is-open" : ""}" data-field="${e(id)}" aria-label="${revealed ? "Скрыть" : "Раскрыть"}: ${e(label)}" aria-pressed="${revealed}" ${this.busy ? "disabled" : ""}`) : "";
@@ -68,7 +70,7 @@
       const notes = this.drafts.get(publicDoc?.id)?.text ?? feature.model.plain(page?.text.content ?? "");
       const editableNotes = !this.preview && page?.testUserPermission(game.user, "OWNER");
       return `<div class="eb-card-header"><div class="eb-portrait"><img src="${e(display.img)}" alt="Портрет существа">${this.reveal("image", revealed.includes("image"))}</div><div class="eb-identity"><span class="eb-eyebrow">${this.gm ? "КАРТОЧКА МАСТЕРА" : "ЗНАНИЯ ГРУППЫ"}</span><h2>${e(display.name)}</h2>
-        ${this.gm ? `<p class="eb-hint">Имя открыто всегда · Сохранённая копия ${e(new Date(data.snapshot.capturedAt).toLocaleDateString("ru"))}</p>` : `<p class="eb-hint">Известных сведений: ${display.fields.length}</p>`}</div></div>
+        ${this.gm ? `<p class="eb-hint">Сохранённая копия · ${e(new Date(data.snapshot.capturedAt).toLocaleDateString("ru"))}</p>` : `<p class="eb-hint">Известных сведений: ${display.fields.length}</p>`}</div></div>
         ${this.gm ? `<div class="eb-card-actions">${button("reveal-all", "Открыть всё")}${button("hide-all", "Скрыть всё")}${button("refresh", '<i class="fa-solid fa-rotate" aria-hidden="true"></i> Обновить из источника')}${button("remove", '<i class="fa-solid fa-trash-can" aria-hidden="true"></i> Удалить запись', `class="eb-danger" ${this.busy ? "disabled" : ""}`)}</div>` : ""}
         ${Object.entries(groups).map(([group, title]) => {
           const fields = display.fields.filter((field) => field.group === group);
@@ -92,6 +94,9 @@
         return `<article class="eb-field eb-fact-list"><h4>${listTitles[category]}</h4><ul>${rows.map((field) => `<li class="eb-fact-row ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span class="eb-value">${e(field.value)}</span>${this.reveal(field.id, revealed.includes(field.id), `${listTitles[category]}: ${field.value}`)}</li>`).join("")}</ul></article>`;
       }).join("");
     }
+    description(field) {
+      return `${e(field.value)}${field.original ? `<details class="eb-original" data-original="${e(`${this.selected}:${field.id}`)}"><summary>Оригинал</summary><div class="eb-original-text">${e(field.original)}</div></details>` : ""}`;
+    }
     field(field, revealed) {
       const classes = `eb-field ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}`;
       if (field.spell) {
@@ -100,9 +105,9 @@
         const destination = typeof uuid === "string" && uuid.startsWith("Compendium.") ? ` data-uuid="${e(uuid)}"` : "";
         const toggleLabel = `${expanded ? "Свернуть" : "Развернуть"} описание: ${field.label}`;
         const toggle = button("spell-toggle", `<i class="fa-solid ${expanded ? "fa-chevron-up" : "fa-chevron-down"}" aria-hidden="true"></i>`, `class="eb-spell-toggle" data-field="${e(field.id)}" aria-expanded="${expanded}" aria-label="${e(toggleLabel)}" title="${e(toggleLabel)}"`);
-        return `<article class="${classes} eb-spell-card"><div class="eb-spell-row">${toggle}<span class="eb-spell-name"><a class="content-link eb-spell-link" href="#" data-command="spell" data-field="${e(field.id)}"${destination} aria-label="Открыть заклинание: ${e(field.label)}"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> ${e(field.label)}</a></span><span class="eb-spell-rank">Ранг ${e(field.spell.rank)}</span>${this.reveal(field.id, revealed.includes(field.id), field.label)}</div>${expanded ? `<div class="eb-value eb-spell-description">${e(field.value)}</div>` : ""}</article>`;
+        return `<article class="${classes} eb-spell-card"><div class="eb-spell-row">${toggle}<span class="eb-spell-name"><a class="content-link eb-spell-link" href="#" data-command="spell" data-field="${e(field.id)}"${destination} aria-label="Открыть заклинание: ${e(field.label)}"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> ${e(field.label)}</a></span><span class="eb-spell-rank">Ранг ${e(field.spell.rank)}</span>${this.reveal(field.id, revealed.includes(field.id), field.label)}</div>${expanded ? `<div class="eb-value eb-spell-description">${this.description(field)}</div>` : ""}</article>`;
       }
-      return `<article class="${classes}"><div class="eb-field-title"><h4>${e(field.label)}</h4>${this.reveal(field.id, revealed.includes(field.id), field.label)}</div><div class="eb-value">${e(field.value)}</div></article>`;
+      return `<article class="${classes}"><div class="eb-field-title"><h4>${e(field.label)}</h4>${this.reveal(field.id, revealed.includes(field.id), field.label)}</div><div class="eb-value">${this.description(field)}</div></article>`;
     }
     _onRender(context, options) {
       super._onRender(context, options);
@@ -219,7 +224,7 @@
             return;
           }
           await foundry.applications.api.DialogV2.wait({ window: { title: field.label }, position: { width: 600 },
-            content: `<p>Оригинал недоступен. Сохранённое описание · Ранг ${e(field.spell.rank)}</p><div style="white-space:pre-wrap">${e(field.value)}</div>`,
+            content: `<p>Оригинал недоступен. Сохранённое описание · Ранг ${e(field.spell.rank)}</p><div style="white-space:pre-wrap">${this.description(field)}</div>`,
             buttons: [{ action: "close", label: "Закрыть", default: true }], rejectClose: false });
         });
       }
@@ -245,7 +250,7 @@
       }
       if (command === "refresh" || command === "reveal-all") {
         const accepted = await foundry.applications.api.DialogV2.confirm({ window: { title: command === "refresh" ? "Обновить карточку" : "Раскрыть существо" },
-          content: `<p>${command === "refresh" ? "Заменить характеристики и описание данными источника? Изменённые сведения снова станут скрытыми. Имя останется открытым, заметки группы сохранятся." : "Открыть игрокам изображение и все сведения этой карточки?"}</p>` });
+          content: `<p>${command === "refresh" ? "Заменить характеристики и описание данными источника? Изменённые сведения снова станут скрытыми. Заметки группы сохранятся." : "Открыть игрокам изображение и все сведения этой карточки?"}</p>` });
         if (!accepted) return;
       }
       return this.perform(async () => {

@@ -493,3 +493,43 @@ test("delete UI confirms the named card, preserves cancelled drafts and hides de
   await app.command({ dataset: { command: "reset" } });
   assert.equal(prompts, 2); assert.equal(resetCalls, 1); assert.deepEqual(errors, []);
 });
+
+test("Babele original descriptions are stored separately, folded in UI and never leak from hidden fields", async () => {
+  const { feature, game } = setup(); const source = actor();
+  source.items[1].system.description.value = '<p>Русское описание.</p><hr/><details><summary>Оригинал</summary><p>Original ability.</p><section class="secret">GM ORIGINAL SECRET</section></details><p>Русское дополнение.</p>';
+  const { doc } = await feature.store.addActor(source);
+  const saved = feature.store.data(doc).snapshot.fields.find((f) => f.id === "item-reaction");
+  assert.match(saved.value, /Русское описание/); assert.match(saved.value, /Русское дополнение/);
+  assert.equal(saved.original, "Original ability."); assert.doesNotMatch(saved.value, /Original|Оригинал/);
+  const app = new feature.Application();
+  assert.match(app.content(), /<details class="eb-original"[^>]*><summary>Оригинал<\/summary>/);
+  assert.doesNotMatch(app.content(), /<details[^>]*\bopen\b|GM ORIGINAL SECRET|Имя (?:открыто|видно|останется)/);
+  game.user = { id: "player", isGM: false };
+  assert.doesNotMatch(app.content(), /Original ability|Русское описание|eb-original/);
+  game.user = game.users.activeGM;
+  await feature.store.update(doc, (entry) => ({ ...entry, revealed: ["item-reaction"] }));
+  const projection = feature.store.data(game.journal.get(feature.store.data(doc).publicId)).projection;
+  assert.equal(projection.fields[0].original, "Original ability.");
+  game.user = { id: "player", isGM: false };
+  assert.match(app.content(), /eb-original-text">Original ability\./);
+  const next = clone(feature.store.data(doc).snapshot);
+  next.fields.find((f) => f.id === "item-reaction").original = "Changed original.";
+  assert.ok(!feature.model.refresh(feature.store.data(doc), next).revealed.includes("item-reaction"));
+});
+
+test("legacy flattened and localized original blocks separate without changing saved data", () => {
+  const { feature, game } = setup();
+  const legacy = { id: "item-red-cap", label: "Красный колпак", value: "Природный\nРусское описание.\n\nОригиналA redcap's woolen hat.\n\nEffect: Lost Red Cap" };
+  const before = clone(legacy); const displayed = feature.store.displayField(legacy);
+  assert.equal(displayed.value, "Природный\nРусское описание.");
+  assert.equal(displayed.original, "A redcap's woolen hat.\n\nEffect: Lost Red Cap");
+  assert.deepEqual(legacy, before);
+  assert.equal(feature.model.description("Оригинальный текст.\nОригинал документа хранится здесь.").original, undefined);
+  game.i18n.localize = () => '<p>Перевод</p><details><summary>Оригинал</summary><p>English text</p></details>';
+  const localized = feature.store.displayField({ id: "item-l", value: "@Localize[Ability.Text]" });
+  assert.equal(localized.value, "Перевод"); assert.equal(localized.original, "English text");
+  const hidden = feature.model.description('<p>Общий текст</p><section class="secret"><details><summary>Оригинал</summary>SECRET BLOCK</details></section>');
+  assert.equal(hidden.value, "Общий текст"); assert.equal(hidden.original, undefined);
+  const escaped = new feature.Application().description({ id: "safe", value: "Текст", original: '<img onerror="alert(1)" src=x>' });
+  assert.doesNotMatch(escaped, /<img/); assert.match(escaped, /&lt;img/);
+});
