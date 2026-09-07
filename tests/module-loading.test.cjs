@@ -39,6 +39,7 @@ function setup({ loaded = false, bestiaryLoaded = true } = {}) {
     worldClock: { onInit: noOp, onReady: noOp }, preciousMaterialArmor: {},
     weaponFamiliarity: { onInit: noOp },
     bestiary: { initialize: noOp },
+    regaliaIntensify: { initialize: noOp },
   };
   if (!bestiaryLoaded) delete context.pf2eEliottTools.features.bestiary;
   if (loaded) vm.runInContext(recoverySource, context);

@@ -28,6 +28,7 @@
     worldClock.onReady();
     void initializeFrightenedRecovery();
     void initializeBestiary();
+    void initializeRegaliaIntensify();
 
     console.log(`${logPrefix} | ready`);
   });
@@ -67,6 +68,24 @@
       return oathOfTheDefender.onRenderChatMessage(...args);
     }
   });
+
+  async function initializeRegaliaIntensify() {
+    try {
+      if (!tools.features.regaliaIntensify) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/regalia-intensify.js`);
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Could not load regalia-intensify.js"));
+          document.head.append(script);
+        });
+      }
+      tools.features.regaliaIntensify.initialize();
+    } catch (error) {
+      console.error(`${logPrefix} | Could not initialize regalia`, error);
+      ui.notifications.error("Не удалось загрузить регалию. Обновите страницу Foundry.");
+    }
+  }
 
   async function initializeBestiary() {
     try {
