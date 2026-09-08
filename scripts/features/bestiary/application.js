@@ -1,6 +1,6 @@
 (function () {
   const feature = globalThis.pf2eEliottTools.features.bestiary;
-  const { escape: e, groups } = feature.model;
+  const { escape: e } = feature.model;
   feature.windows = new Set();
   const button = (action, text, attributes = "") => `<button type="button" data-command="${action}" ${attributes}>${text}</button>`;
   const traits = (display) => display.fields.filter((field) => field.id === "traits" || field.id.startsWith("traits-")).map((field) => field.value).join(", ");
@@ -9,7 +9,7 @@
     static DEFAULT_OPTIONS = {
       id: "eliott-bestiary", tag: "div", classes: ["eliott-bestiary"],
       window: { title: "Бестиарий группы", icon: "fa-solid fa-book-open", resizable: true },
-      position: { width: 1020, height: 760 },
+      position: { width: 1180, height: 800 },
     };
     selected = null;
     query = "";
@@ -51,7 +51,7 @@
       if (!entries.some((entry) => entry.doc.id === this.selected)) this.selected = entries[0]?.doc.id ?? null;
       const entry = entries.find((entry) => entry.doc.id === this.selected);
       return `<div class="eb-shell">
-        <header class="eb-top"><div><span class="eb-eyebrow">PF2E · ELIOTT TOOLS</span><h1>Бестиарий группы</h1><p>${this.preview ? "Предпросмотр · только известные группе сведения" : this.gm ? "Существа, встречи и знания вашей группы" : "Всё, что вам удалось узнать"}</p></div>
+        <header class="eb-top"><div><h1>Бестиарий группы</h1><p>${this.preview ? "Предпросмотр · только известные группе сведения" : this.gm ? "Существа, встречи и знания вашей группы" : "Всё, что вам удалось узнать"}</p></div>
           <div class="eb-top-actions">${game.user.isGM ? button("preview", this.preview ? "Вернуться к мастеру" : "Глазами игрока", `aria-pressed="${this.preview}"`) : ""}${this.gm ? button("reset", '<i class="fa-solid fa-trash-can" aria-hidden="true"></i> Очистить всё', `class="eb-danger" ${this.busy ? "disabled" : ""}`) : ""}<span class="eb-counter">Записей: ${all.length}</span></div></header>
         <div class="eb-body"><aside class="eb-sidebar"><label class="eb-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input data-search type="search" aria-label="Поиск существ" placeholder="Найти существо…" value="${e(this.query)}"></label>
           ${this.gm ? `<div class="eb-add">${button("pick-actor", '<i class="fa-solid fa-plus" aria-hidden="true"></i> Добавить существо', this.busy ? "disabled" : "")}${button("add-selected", "Из выбранных токенов", this.busy ? "disabled" : "")}<label class="eb-check"><input data-separate type="checkbox"> Как отдельную запись</label><p>Или перетащите сюда NPC из акторов или компендиума.</p></div>` : ""}
@@ -60,8 +60,31 @@
           <main class="eb-detail" data-scroll="detail">${entry ? this.card(entry) : `<div class="eb-empty"><i class="fa-solid fa-dragon" aria-hidden="true"></i><span class="eb-eyebrow">ПЕРВАЯ ВСТРЕЧА</span><h2>${query ? "Попробуйте другое название" : "У каждого чудовища есть история"}</h2><p>${this.gm ? "Перетащите существо в это окно. Его карточка сохранится здесь, даже если исходного актора больше не будет." : "Мастер добавит встреченных существ и откроет то, что удалось о них узнать."}</p></div>`}</main></div>
         <footer class="eb-status">${this.busy ? "Сохраняем…" : this.gm ? "Кнопки «Скрыто» раскрывают сведения группе." : "Заметки группы доступны всем участникам."}</footer></div>`;
     }
-    reveal(id, revealed, label = { name: "Имя", image: "Портрет" }[id]) {
-      return this.gm ? button("reveal", `<i class="fa-solid ${revealed ? "fa-eye" : "fa-eye-slash"}" aria-hidden="true"></i> ${revealed ? "Открыто" : "Скрыто"}`, `class="eb-visibility ${revealed ? "is-open" : ""}" data-field="${e(id)}" aria-label="${revealed ? "Скрыть" : "Раскрыть"}: ${e(label)}" aria-pressed="${revealed}" ${this.busy ? "disabled" : ""}`) : "";
+    reveal(id, revealed, label = { name: "Имя", image: "Портрет" }[id], compact = false) {
+      const hint = `${revealed ? "Скрыть" : "Раскрыть"}: ${label}`;
+      return this.gm ? button("reveal", `<i class="fa-solid ${revealed ? "fa-eye" : "fa-eye-slash"}" aria-hidden="true"></i>${compact ? "" : ` ${revealed ? "Открыто" : "Скрыто"}`}`, `class="eb-visibility ${compact ? "eb-visibility-icon" : ""} ${revealed ? "is-open" : ""}" data-field="${e(id)}" aria-label="${e(hint)}" title="${e(hint)}" aria-pressed="${revealed}" ${this.busy ? "disabled" : ""}`) : "";
+    }
+    layoutFields(fields) {
+      const layout = Object.fromEntries(["level", "profile", "traits", "defenses", "immunities", "weaknesses", "resistances", "saves", "speed", "senses", "languages", "overview", "attacks", "abilities", "spells", "lore"].map((key) => [key, []]));
+      for (const field of fields) {
+        const category = Object.keys(listTitles).find((key) => field.id === key || field.id.startsWith(`${key}-`));
+        const scope = field.id === "level" ? "level" : ["size", "rarity"].includes(field.id) ? "profile" :
+          field.id.startsWith("save-") ? "saves" : field.id === "perception" ? "senses" : category ?? (layout[field.group] ? field.group : "overview");
+        layout[scope].push(field);
+      }
+      return layout;
+    }
+    stat(field, revealed, label = field.label) {
+      return `<article class="eb-stat ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span class="eb-stat-label">${e(label)}</span><strong class="eb-stat-value">${e(field.value)}</strong>${this.reveal(field.id, revealed.includes(field.id), field.label, true)}</article>`;
+    }
+    sheetSection(scope, title, fields, revealed, mode = "cards") {
+      if (!fields.length) return "";
+      const allOpen = fields.every((field) => revealed.includes(field.id));
+      const header = `<div class="eb-section-title"><h3>${e(title)}</h3>${this.gm ? button("group", allOpen ? "Скрыть" : "Раскрыть", `data-scope="${scope}" aria-label="${allOpen ? "Скрыть" : "Раскрыть"} раздел: ${e(title)}" ${this.busy ? "disabled" : ""}`) : ""}</div>`;
+      const contents = mode === "stats" ? fields.map((field) => ["ac", "hp"].includes(field.id) || field.id.startsWith("save-") ? this.stat(field, revealed, { hp: "ОЗ", "save-fortitude": "Стойк.", "save-reflex": "Рефл.", "save-will": "Воля" }[field.id] ?? field.label) : this.field(field, revealed)).join("") :
+        mode === "tags" ? fields.map((field) => `<span class="eb-trait-tag ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span>${e(field.value)}</span>${this.reveal(field.id, revealed.includes(field.id), `${title}: ${field.value}`, true)}</span>`).join("") :
+        mode === "facts" ? `<ul class="eb-sheet-facts">${fields.map((field) => `<li class="eb-fact-row ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span class="eb-value">${field.id === "perception" ? "Восприятие " : ""}${this.description(field)}</span>${this.reveal(field.id, revealed.includes(field.id), `${title}: ${field.value}`, true)}</li>`).join("")}</ul>` : this.fieldGroups(fields, revealed);
+      return `<section class="eb-section eb-sheet-section eb-scope-${scope}">${header}<div class="eb-section-content eb-mode-${mode}">${contents}</div></section>`;
     }
     card(entry) {
       const { display, data, publicDoc } = entry;
@@ -69,17 +92,26 @@
       const page = publicDoc?.pages.find((p) => p.type === "text");
       const notes = this.drafts.get(publicDoc?.id)?.text ?? feature.model.plain(page?.text.content ?? "");
       const editableNotes = !this.preview && page?.testUserPermission(game.user, "OWNER");
-      return `<div class="eb-card-header"><div class="eb-portrait"><img src="${e(display.img)}" alt="Портрет существа">${this.reveal("image", revealed.includes("image"))}</div><div class="eb-identity"><span class="eb-eyebrow">${this.gm ? "КАРТОЧКА МАСТЕРА" : "ЗНАНИЯ ГРУППЫ"}</span><h2>${e(display.name)}</h2>
-        ${this.gm ? `<p class="eb-hint">Сохранённая копия · ${e(new Date(data.snapshot.capturedAt).toLocaleDateString("ru"))}</p>` : `<p class="eb-hint">Известных сведений: ${display.fields.length}</p>`}</div></div>
+      const layout = this.layoutFields(display.fields);
+      return `<div class="eb-sheet"><aside class="eb-sheet-sidebar" aria-label="Портрет и защиты"><div class="eb-portrait"><img src="${e(display.img)}" alt="Портрет существа">${this.reveal("image", revealed.includes("image"))}</div>
+        ${this.sheetSection("defenses", "Защиты", layout.defenses, revealed, "stats")}
+        ${["immunities", "weaknesses", "resistances"].map((scope) => this.sheetSection(scope, listTitles[scope], layout[scope], revealed, "facts")).join("")}
+        ${this.sheetSection("saves", "Спасброски", layout.saves, revealed, "stats")}
+        ${this.sheetSection("speed", "Скорости", layout.speed, revealed, "facts")}
+        </aside><div class="eb-sheet-main"><header class="eb-sheet-heading"><div class="eb-title-row"><h2>${e(display.name)}</h2><div class="eb-level">${layout.level.map((field) => this.stat(field, revealed, "Существо")).join("")}</div></div>
+        <div class="eb-profile-meta">${layout.profile.map((field) => `<span class="eb-trait-tag ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span>${e(field.value)}</span>${this.reveal(field.id, revealed.includes(field.id), field.label, true)}</span>`).join("")}</div>
+        ${this.sheetSection("traits", "Признаки", layout.traits, revealed, "tags")}
+        ${this.gm ? `<p class="eb-hint">Сохранённая копия · ${e(new Date(data.snapshot.capturedAt).toLocaleDateString("ru"))}</p>` : `<p class="eb-hint">Известных сведений: ${display.fields.length}</p>`}</header>
         ${this.gm ? `<div class="eb-card-actions">${button("reveal-all", "Открыть всё")}${button("hide-all", "Скрыть всё")}${button("refresh", '<i class="fa-solid fa-rotate" aria-hidden="true"></i> Обновить из источника')}${button("remove", '<i class="fa-solid fa-trash-can" aria-hidden="true"></i> Удалить запись', `class="eb-danger" ${this.busy ? "disabled" : ""}`)}</div>` : ""}
-        ${Object.entries(groups).map(([group, title]) => {
-          const fields = display.fields.filter((field) => field.group === group);
-          if (!fields.length) return "";
-          const allOpen = fields.every((field) => revealed.includes(field.id));
-          return `<section class="eb-section"><div class="eb-section-title"><h3>${title}</h3>${this.gm ? button("group", allOpen ? "Скрыть раздел" : "Открыть раздел", `data-group="${group}"`) : ""}</div><div class="eb-fields ${group === "defenses" ? "eb-defense-grid" : ""}">${this.fieldGroups(fields, revealed)}</div></section>`;
-        }).join("")}
+        ${this.sheetSection("senses", "Чувства", layout.senses, revealed, "facts")}
+        ${this.sheetSection("languages", "Языки", layout.languages, revealed, "facts")}
+        ${this.sheetSection("overview", "Общее", layout.overview, revealed)}
+        ${this.sheetSection("attacks", "Атаки", layout.attacks, revealed)}
+        ${this.sheetSection("abilities", "Способности", layout.abilities, revealed)}
+        ${this.sheetSection("spells", "Заклинания", layout.spells, revealed)}
+        ${this.sheetSection("lore", "Описание", layout.lore, revealed)}
         ${!display.fields.length ? `<div class="eb-unknown"><i class="fa-solid fa-compass" aria-hidden="true"></i><h3>Это существо ещё предстоит изучить</h3><p>Открытые мастером сведения появятся здесь.</p></div>` : ""}
-        <section class="eb-section eb-notes"><div class="eb-section-title"><h3>Заметки группы</h3><span class="eb-hint">Общие для всех</span></div>${editableNotes ? `<textarea data-notes aria-label="Заметки группы" placeholder="Что вы заметили? Как с ним сражаться?">${e(notes)}</textarea><div class="eb-note-actions"><span class="eb-hint">${this.drafts.has(publicDoc.id) ? "Есть несохранённый текст" : "Записывайте наблюдения и догадки"}</span>${button("save-notes", "Сохранить заметки", this.busy ? "disabled" : "")}</div>` : `<p class="eb-value">${e(notes || "Наблюдений пока нет.")}</p>`}</section>`;
+        <section class="eb-section eb-notes"><div class="eb-section-title"><h3>Заметки группы</h3><span class="eb-hint">Общие для всех</span></div>${editableNotes ? `<textarea data-notes aria-label="Заметки группы" placeholder="Что вы заметили? Как с ним сражаться?">${e(notes)}</textarea><div class="eb-note-actions"><span class="eb-hint">${this.drafts.has(publicDoc.id) ? "Есть несохранённый текст" : "Записывайте наблюдения и догадки"}</span>${button("save-notes", "Сохранить заметки", this.busy ? "disabled" : "")}</div>` : `<p class="eb-value">${e(notes || "Наблюдений пока нет.")}</p>`}</section></div></div>`;
     }
     fieldGroups(fields, revealed) {
       const blocks = new Map();
@@ -256,7 +288,7 @@
       return this.perform(async () => {
         if (command === "refresh") return feature.store.refresh(row.doc);
         await feature.store.update(row.doc, (entry) => {
-          const keys = command === "reveal" ? [node.dataset.field] : command === "group" ? entry.snapshot.fields.filter((f) => f.group === node.dataset.group).map((f) => f.id) : ["image", ...entry.snapshot.fields.map((f) => f.id)];
+          const keys = command === "reveal" ? [node.dataset.field] : command === "group" ? (node.dataset.scope ? this.layoutFields(entry.snapshot.fields)[node.dataset.scope] ?? [] : entry.snapshot.fields.filter((f) => f.group === node.dataset.group)).map((f) => f.id) : ["image", ...entry.snapshot.fields.map((f) => f.id)];
           const hide = command === "hide-all" || (command !== "reveal-all" && keys.every((key) => entry.revealed.includes(key)));
           entry.revealed = hide ? entry.revealed.filter((key) => !keys.includes(key)) : [...new Set([...entry.revealed, ...keys])];
           return entry;

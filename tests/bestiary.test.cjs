@@ -533,3 +533,30 @@ test("legacy flattened and localized original blocks separate without changing s
   const escaped = new feature.Application().description({ id: "safe", value: "Текст", original: '<img onerror="alert(1)" src=x>' });
   assert.doesNotMatch(escaped, /<img/); assert.match(escaped, /&lt;img/);
 });
+
+test("sheet layout retains every field once and revealing senses does not reveal other overview facts", async () => {
+  const { feature, game } = setup(); const source = actor();
+  source.system.perception = { mod: 6, senses: [{ type: "darkvision" }] };
+  source.system.details.languages = { value: ["common"] };
+  const { doc } = await feature.store.addActor(source);
+  const app = new feature.Application(); app.render = async () => {};
+  const before = feature.store.data(doc).snapshot;
+  const layout = app.layoutFields(before.fields);
+  const arranged = Object.values(layout).flat().map((field) => field.id);
+  assert.deepEqual([...arranged].sort(), before.fields.map((field) => field.id).sort());
+  const html = app.content();
+  assert.doesNotMatch(html, /PF2E · ELIOTT TOOLS/);
+  const sidebar = html.slice(html.indexOf('class="eb-sheet-sidebar"'), html.indexOf('class="eb-sheet-main"'));
+  assert.match(sidebar, /eb-scope-defenses/); assert.match(sidebar, /eb-scope-saves/); assert.match(sidebar, /eb-scope-speed/);
+  assert.doesNotMatch(sidebar, /eb-scope-senses|eb-scope-languages|eb-scope-attacks/);
+  await app.command({ dataset: { command: "group", scope: "senses" } });
+  const publicDoc = game.journal.get(feature.store.data(doc).publicId);
+  assert.deepEqual(feature.store.data(publicDoc).projection.fields.map((field) => field.id).sort(), clone(layout.senses.map((field) => field.id)).sort());
+  game.user = { id: "player", isGM: false };
+  assert.doesNotMatch(app.content(), /eb-scope-defenses|eb-scope-saves|eb-scope-speed|eb-scope-traits|eb-scope-languages/);
+  assert.match(app.content(), /eb-scope-senses/);
+  game.user = game.users.activeGM;
+  app.content();
+  await app.command({ dataset: { command: "group", scope: "senses" } });
+  assert.equal(feature.store.data(publicDoc).projection.fields.length, 0);
+});
