@@ -10,12 +10,15 @@ const mainSource = read("scripts/main.js");
 const recoverySource = read("scripts/features/frightened-recovery.js");
 const flush = () => new Promise(setImmediate);
 
-function setup({ loaded = false, bestiaryLoaded = true } = {}) {
+function setup({ loaded = false, bestiaryLoaded = true, controlsVersion = 14 } = {}) {
   const hooks = new Map();
   const scripts = [];
   const errors = [];
   const notifications = [];
   const settings = new Map();
+  const menus = new Map();
+  const keybindings = new Map();
+  class ControlsEditor {}
   let trackerUpdates = 0;
   const register = (name, fn) => {
     const listeners = hooks.get(name) ?? [];
@@ -24,9 +27,15 @@ function setup({ loaded = false, bestiaryLoaded = true } = {}) {
   };
   const context = vm.createContext({
     Hooks: { on: register, once: register },
-    game: { keybindings: { register: () => {} }, settings: { register: (_id, key, value) => settings.set(key, value), get: () => true } },
+    game: { keybindings: { register: (_id, key, value) => keybindings.set(key, value) }, settings: {
+      register: (_id, key, value) => settings.set(key, value),
+      registerMenu: (_id, key, value) => menus.set(key, value), get: () => true,
+    } },
     document: { querySelector: () => ({}), createElement: (name) => ({ tagName: name }), head: { append: (script) => scripts.push(script) } },
-    foundry: { utils: { getRoute: (path) => `/foundry/${path}` } },
+    foundry: { utils: { getRoute: (path) => `/foundry/${path}` }, applications: controlsVersion === 14
+      ? { sidebar: { apps: { ControlsConfig: ControlsEditor } } }
+      : controlsVersion === 13 ? { settings: { KeybindingsConfig: ControlsEditor } } : {} },
+    KeybindingsConfig: controlsVersion === 12 ? ControlsEditor : undefined,
     console: { log: () => {}, error: (...args) => errors.push(args) },
     ui: { notifications: { error: (message) => notifications.push(message) } },
   });
@@ -45,7 +54,7 @@ function setup({ loaded = false, bestiaryLoaded = true } = {}) {
   if (loaded) vm.runInContext(recoverySource, context);
   vm.runInContext(mainSource, context);
   const emit = (name, ...args) => hooks.get(name)?.forEach((fn) => fn(...args));
-  return { context, hooks, scripts, errors, notifications, settings, emit,
+  return { context, hooks, scripts, errors, notifications, settings, menus, keybindings, ControlsEditor, emit,
     load: () => vm.runInContext(recoverySource, context),
     get trackerUpdates() { return trackerUpdates; } };
 }
@@ -53,7 +62,7 @@ function setup({ loaded = false, bestiaryLoaded = true } = {}) {
 test("cached manifest: new settings appear and recovery script is loaded before registering hooks", async () => {
   const env = setup();
   env.emit("init");
-  assert.equal(env.settings.get("frightenedRecoveryEnabled").default, true);
+  assert.equal(env.settings.get("frightenedRecoveryEnabled").default, false);
   env.emit("ready");
   assert.equal(env.scripts.length, 1);
   assert.equal(env.scripts[0].src, "/foundry/modules/pf2e-eliott-tools/scripts/features/frightened-recovery.js");
@@ -70,6 +79,27 @@ test("cached manifest: new settings appear and recovery script is loaded before 
   assert.deepEqual(calls, [["combatant", "encounter"]]);
   assert.equal(env.hooks.get("pf2e.endTurn").length, 1);
   assert.deepEqual(env.errors, []);
+});
+
+test("bestiary binding and native controls editor are available to players and GMs across supported versions", () => {
+  for (const controlsVersion of [12, 13, 14]) {
+    const env = setup({ controlsVersion });
+    env.emit("init");
+    const binding = env.keybindings.get("bestiary");
+    assert.equal(binding.restricted, false);
+    assert.equal(binding.editable[0].key, "KeyB");
+    assert.deepEqual(Array.from(binding.editable[0].modifiers), ["Shift"]);
+    const menu = env.menus.get("bestiaryKeybindings");
+    assert.equal(menu.restricted, false);
+    assert.equal(menu.type, env.ControlsEditor);
+    let opened = 0;
+    env.context.pf2eEliottTools.bestiary = { open: () => opened++ };
+    for (const isGM of [false, true]) {
+      env.context.game.user = { isGM };
+      assert.equal(binding.onDown(), true);
+    }
+    assert.equal(opened, 2);
+  }
 });
 
 test("fresh manifest: existing feature is reused without loading or registering twice", async () => {

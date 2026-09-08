@@ -145,8 +145,20 @@
   function registerSettings() {
     game.keybindings.register(moduleId, "bestiary", {
       name: "Открыть бестиарий группы",
+      hint: "Открывает журнал встреченных существ. Игроки и мастер могут назначить своё сочетание клавиш; по умолчанию Shift+B.",
       editable: [{ key: "KeyB", modifiers: ["Shift"] }],
+      restricted: false,
       onDown: () => { tools.bestiary?.open(); return true; },
+    });
+    game.settings.registerMenu(moduleId, "bestiaryKeybindings", {
+      name: "Клавиши бестиария",
+      label: "Настроить клавиши",
+      hint: "В редакторе управления выберите PF2E Eliott Tools → «Открыть бестиарий группы». Сочетание настраивается лично каждым игроком и мастером в своём браузере.",
+      icon: "fas fa-keyboard",
+      type: foundry.applications?.sidebar?.apps?.ControlsConfig
+        ?? foundry.applications?.settings?.KeybindingsConfig
+        ?? globalThis.KeybindingsConfig,
+      restricted: false,
     });
 
     game.settings.register(moduleId, settings.weaponFamiliarityEnabled, {
@@ -174,7 +186,7 @@
       scope: "world",
       config: true,
       type: Boolean,
-      default: true,
+      default: false,
     });
 
     game.settings.register(moduleId, settings.clearTargetsOnTurnEndEnabled, {
@@ -273,7 +285,7 @@
         ],
       },
       {
-        title: "Чемпион",
+        title: "Автоматизация заклинаний",
         settings: [
           {
             key: settings.oathOfTheDefenderEnabled,
@@ -281,11 +293,6 @@
             hint: "Исправляет ауру чемпиона Oath of the Defender: сопротивление применяется только к самому большому подходящему инстансу урона.",
             scope: "world",
           },
-        ],
-      },
-      {
-        title: "Автоматизация заклинаний",
-        settings: [
           {
             key: settings.shieldsOfTheSpiritEnabled,
             name: "Shields of the Spirit",

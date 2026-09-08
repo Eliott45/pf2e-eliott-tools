@@ -58,7 +58,7 @@
   function initialize() {
     if (initialized) return;
     initialized = true;
-    game.settings.register(id, "bestiaryEnabled", { name: "Включить бестиарий группы", hint: "Каталог встреченных существ с общими заметками и раскрытием сведений. Открывается из списка акторов, журналов или Shift+B.", scope: "world", config: true, type: Boolean, default: true, requiresReload: true });
+    game.settings.register(id, "bestiaryEnabled", { name: "Включить бестиарий группы", hint: "Каталог встреченных существ с общими заметками и раскрытием сведений. Открывается из списка акторов, журналов или назначенным сочетанием клавиш (по умолчанию Shift+B). Бинд меняется через «Настроить клавиши».", scope: "world", config: true, type: Boolean, default: true, requiresReload: true });
     game.settings.registerMenu(id, "bestiary", { name: "Бестиарий группы", label: "Открыть бестиарий", hint: "Существа и накопленные знания группы.", icon: "fas fa-book-open", type: feature.Application, restricted: false });
     if (game.ready) onReady();
   }
