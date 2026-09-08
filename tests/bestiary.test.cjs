@@ -48,6 +48,187 @@ function setup() {
   for (const file of ["model", "store", "application"]) vm.runInContext(readFileSync(join(__dirname, `../scripts/features/bestiary/${file}.js`), "utf8"), context);
   return { context, game, feature: context.pf2eEliottTools.features.bestiary, fail: () => { failPublish = true; } };
 }
+
+function richSetup() {
+  const env = setup();
+  env.context.CONFIG.PF2E = {
+    damageTypes: { mental: "Ментальный", piercing: "Колющий", fire: "Огонь" },
+    damageRollFlavors: { mental: "ментального урона", piercing: "колющего урона", fire: "огненного урона" },
+    npcAttackTraits: { magical: "Магический", unarmed: "Безоружное", agile: "Быстрое" },
+    actionTraits: { mental: "Ментальный", aura: "Аура" }, spellTraits: { concentrate: "Концентрация" },
+  };
+  return env;
+}
+
+test("inline roll flavor is separate from dice labels and is preserved in chat", async () => {
+  const {feature,context,game}=richSetup();
+  const source=actor();
+  source.items[1].system.description.value='Когда паск восстанавливает действия, бросьте [[/r 1d4#Восстановленные действия]]. Затем продолжите ход.';
+  const {doc}=await feature.store.addActor(source);
+  const app=new feature.Application(); app.render=async()=>{}; app.content();
+  const field=feature.store.displayField(feature.store.data(doc).snapshot.fields.find(f=>f.id==="item-reaction"));
+  const tokens=feature.model.tokens(field);
+  const index=tokens.findIndex(t=>t.type==="roll");
+  assert.equal(tokens[index].formula,"1d4");
+  assert.equal(tokens[index].label,"1d4");
+  assert.equal(tokens[index].flavor,"Восстановленные действия");
+  assert.doesNotMatch(app.description(field),/#Восстановленные|1d4#|\[\[/);
+  assert.match(app.description(field),/Затем продолжите ход/);
+  const messages=[];
+  context.Roll=class {static validate(formula){return formula==="1d4";} constructor(formula){this.formula=formula;} async toMessage(data){messages.push({data,formula:this.formula});}};
+  game.settings={get:()=>"publicroll"};
+  await app.command({dataset:{command:"roll",field:field.id,token:String(index)}});
+  assert.equal(messages[0].formula,"1d4");
+  assert.match(messages[0].data.flavor,/Восстановленные действия/);
+  const custom=feature.model.tokens({value:'[[/roll 1d4 # Regained Actions]]{Кубик действий}'}).find(t=>t.type==="roll");
+  assert.equal(custom.formula,"1d4"); assert.equal(custom.label,"Кубик действий"); assert.equal(custom.flavor,"Regained Actions");
+  assert.equal(feature.model.rollToken('alert(1)#dice'),null);
+});
+
+test("trait badges use PF2e descriptions for translated and slug labels without leaking hidden traits", async () => {
+  const {feature,context,game}=richSetup();
+  context.CONFIG.PF2E.creatureTraits={demon:"Демон"};
+  context.CONFIG.PF2E.traitsDescriptions={aura:"PF2E.TraitDescriptionAura",mental:"PF2E.TraitDescriptionMental",demon:"PF2E.TraitDescriptionDemon"};
+  assert.equal(feature.store.traitTooltip("Аура"),"PF2E.TraitDescriptionAura");
+  assert.equal(feature.store.traitTooltip("aura"),"PF2E.TraitDescriptionAura");
+  assert.equal(feature.store.traitTooltip("Мой новый признак"),"");
+  const source=actor(); source.system.traits.value=["demon"];
+  source.items[1].system.traits={value:["aura","mental"]};
+  const {doc}=await feature.store.addActor(source);
+  const app=new feature.Application();
+  const html=app.content();
+  assert.match(html,/data-tooltip="PF2E.TraitDescriptionAura" data-tooltip-class="pf2e" tabindex="0"/);
+  assert.match(html,/data-tooltip="PF2E.TraitDescriptionDemon"/);
+  game.user={id:"player",isGM:false};
+  assert.doesNotMatch(app.content(),/TraitDescription|Аура|Ментальный|Демон/);
+  game.user=game.users.activeGM;
+  await feature.store.update(doc,entry=>({...entry,revealed:["item-reaction"]}));
+  game.user={id:"player",isGM:false};
+  assert.match(app.content(),/TraitDescriptionAura/);
+  assert.doesNotMatch(app.content(),/TraitDescriptionDemon/);
+});
+
+test("ability names and action costs render separately while preserving the saved label", () => {
+  const {feature}=richSetup(); const app=new feature.Application();
+  const field={id:"sloth",group:"abilities",label:"Лень / Sloth · Пассивная",value:"Описание способности."};
+  assert.match(app.field(field,[]),/<h4>Лень \/ Sloth<span class="eb-action-cost">Пассивная<\/span><\/h4>/);
+  assert.equal(field.label,"Лень / Sloth · Пассивная");
+});
+
+test("attacks, ability traits and legacy typed dice have distinct readable interactive tokens", () => {
+  const { feature } = richSetup();
+  const field = { id: "attack", group: "attacks", value: "Атака +10\n1d8 + 4 Колющий\nМагический, Безоружное" };
+  const tokens = feature.model.tokens(field);
+  const rolls = tokens.filter((token) => token.type === "roll");
+  assert.equal(rolls[0].formula, "1d20+10");
+  assert.equal(rolls[1].formula, "1d8 + 4[piercing]");
+  assert.equal(rolls[1].damage, true);
+  assert.equal(rolls[1].label, "1d8 + 4 колющего урона");
+  assert.deepEqual(Array.from(tokens.filter((token) => token.type === "trait"), (token) => token.label), ["Магический", "Безоружное"]);
+  const app = new feature.Application();
+  assert.match(app.description(field), /eb-inline-trait/);
+  assert.match(app.description({id:"old",value:"Получает 4d6[mental]."}), /4d6 ментального урона/);
+  assert.doesNotMatch(app.description({id:"old",value:"Получает 4d6[mental]."}), /\[mental\]/);
+  assert.doesNotMatch(app.description({id:"old",value:"Получает 4d6[mental]{4d6 ментального урона}."}), /\[mental\]|\{4d6/);
+  const compound = feature.model.tokens({content:"@Damage[(2d6+3)[fire],1d6[mental]]"}).find(token=>token.type==="roll");
+  assert.equal(compound.formula,"(2d6+3)[fire],1d6[mental]");
+  assert.equal(compound.damage,true);
+  const russian = feature.model.tokens({ value: "Бросьте 4д6 + 2. Потом [[/r 1d20+5]]." }).filter((token) => token.type === "roll");
+  assert.deepEqual(Array.from(russian, (token) => token.formula), ["4d6 + 2", "1d20+5"]);
+});
+
+test("saved rich descriptions retain damage, original-language links and traits without exposing secrets", async () => {
+  const {feature, game} = richSetup();
+  const source = actor();
+  source.items[1].system.traits = {value:["mental"]};
+  source.items[1].system.description.value = '<p>Получает @Damage[4d6[mental]]{4d6 ментального урона}. @UUID[Compendium.pf2e.feats-srd.Item.stance]{Стойка}</p><details><summary>Оригинал</summary>@Damage[4d6[mental]] @UUID[Compendium.pf2e.feats-srd.Item.stance]{Stance}</details><section class="secret">@UUID[Compendium.pf2e.feats-srd.Item.secret]{SECRET}</section><script>alert(1)</script>';
+  const {doc} = await feature.store.addActor(source);
+  const saved = feature.store.data(doc).snapshot.fields.find((field)=>field.id === "item-reaction");
+  assert.match(saved.content, /@Damage\[4d6\[mental\]\]/);
+  assert.match(saved.originalContent, /Stance/);
+  assert.doesNotMatch(JSON.stringify(saved), /SECRET|secret|alert/);
+  const app = new feature.Application();
+  assert.match(app.content(), /data-command="reference"/);
+  game.user = {id:"player",isGM:false};
+  assert.doesNotMatch(app.content(), /Стойка|ментального|Stance|eb-inline-trait/);
+  game.user = game.users.activeGM;
+  await feature.store.update(doc, entry=>({...entry,revealed:["item-reaction"]}));
+  game.user = {id:"player",isGM:false};
+  assert.match(app.content(), /eb-inline-trait">Ментальный/);
+  assert.match(app.content(), /data-command="reference"/);
+});
+
+test("rich presentation migration repairs unchanged saved fields but never refreshes changed facts", () => {
+  const {feature} = richSetup();
+  const source = actor();
+  source.items[1].system.description.value = '@UUID[Compendium.pf2e.feats-srd.Item.stance]{Стойка} и @Damage[4d6[mental]].';
+  const snapshot = feature.model.snapshot(source, feature.store.localize);
+  snapshot.presentationVersion = 3;
+  for(const field of snapshot.fields) { delete field.content; delete field.traits; }
+  const entry = {snapshot, revealed:["ac","item-reaction"]};
+  const before = clone(entry);
+  source.system.attributes.ac.value = 99;
+  const upgraded = feature.model.upgrade(entry,source,feature.store.localize);
+  assert.equal(upgraded.snapshot.fields.find(f=>f.id==="ac").value,"16");
+  assert.match(upgraded.snapshot.fields.find(f=>f.id==="item-reaction").content,/stance/);
+  assert.deepEqual(clone(entry),before);
+  assert.deepEqual(Array.from(upgraded.revealed),entry.revealed);
+  source.items[1].system.description.value = 'Новый секрет @UUID[Compendium.pf2e.feats-srd.Item.other]{Другое}';
+  const changed = feature.model.upgrade(entry,source,feature.store.localize);
+  assert.equal(changed.snapshot.fields.find(f=>f.id==="item-reaction").content,undefined);
+  assert.doesNotMatch(JSON.stringify(changed),/Новый секрет|other/);
+  const missing = feature.model.upgrade(entry,null,feature.store.localize);
+  assert.equal(missing.snapshot.fields.find(f=>f.id==="item-reaction").value,before.snapshot.fields.find(f=>f.id==="item-reaction").value);
+  source.items[1].system.description.value='@Damage[4d6[mental]]{4d6 ментального урона}.';
+  const labeled = feature.model.snapshot(source,feature.store.localize);
+  labeled.presentationVersion=3;
+  const labeledField=labeled.fields.find(f=>f.id==="item-reaction");
+  labeledField.value="4d6[mental]{4d6 ментального урона}."; delete labeledField.content;
+  const repaired=feature.model.upgrade({snapshot:labeled,revealed:[labeledField.id]},source,feature.store.localize);
+  assert.match(repaired.snapshot.fields.find(f=>f.id===labeledField.id).content,/@Damage/);
+});
+
+test("dice and reference clicks use only visible saved tokens, respect roll privacy and document permissions", async () => {
+  const {feature,context,game} = richSetup();
+  const source = actor();
+  source.items[1].system.description.value = '@Damage[4d6[mental]] @UUID[Compendium.pf2e.feats-srd.Item.stance]{Стойка}';
+  const {doc} = await feature.store.addActor(source);
+  const app = new feature.Application(); app.render = async()=>{};
+  const messages=[]; const errors=[]; const renders=[];
+  context.ui = {notifications:{error:message=>errors.push(message),warn:message=>errors.push(message)}};
+  class DamageRoll { static validate(){return true;} constructor(formula){this.formula=formula;} async toMessage(data,options){messages.push({formula:this.formula,data,options});} }
+  context.CONFIG.Dice = {rolls:[DamageRoll]};
+  game.settings={get:()=>"gmroll"};
+  let allowed=true; let documentName="Item";
+  context.fromUuid=async()=>({documentName,testUserPermission:()=>allowed,sheet:{render:(...args)=>renders.push(args),bringToTop:()=>assert.fail("Early V1 focus")}});
+  const saved=feature.store.data(doc).snapshot.fields.find(f=>f.id==="item-reaction");
+  const tokens=feature.model.tokens(feature.store.displayField(saved));
+  const roll={dataset:{command:"roll",field:saved.id,token:String(tokens.findIndex(t=>t.type==="roll")),formula:"999d20"}};
+  const link={dataset:{command:"reference",field:saved.id,token:String(tokens.findIndex(t=>t.type==="link")),uuid:"Actor.secret"}};
+  game.user={id:"player",isGM:false}; app.content();
+  await app.command(roll); await app.command(link);
+  assert.equal(messages.length,0); assert.equal(renders.length,0);
+  game.user=game.users.activeGM;
+  await feature.store.update(doc,entry=>({...entry,revealed:[saved.id]}));
+  game.user={id:"player",isGM:false}; app.content();
+  await app.command(roll); await app.command(link);
+  assert.equal(messages[0].formula,"4d6[mental]");
+  assert.equal(messages[0].options.rollMode,"gmroll");
+  assert.equal(messages[0].data.speaker.actor,undefined);
+  assert.equal(renders[0][0],true); assert.equal(renders[0][1].focus,true);
+  allowed=false; await app.command(link);
+  allowed=true; documentName="Macro"; await app.command(link);
+  assert.equal(renders.length,1); assert.equal(errors.length,2);
+});
+
+test("rich text rejects world documents, executable formulas and unsafe HTML", () => {
+  const {feature} = richSetup();
+  const field = feature.model.description('@UUID[Actor.secret]{Видимая метка} @UUID[Compendium.pf2e.monsters.Actor.secret.Item.x]{Способность} @Damage[@actor.system.hp[mental]] @Damage[999999d6[mental]] <img onerror="alert(1)" src=x>');
+  assert.doesNotMatch(JSON.stringify(field),/Actor.secret|onerror|<img/);
+  assert.equal(feature.model.tokens(field).filter(t=>t.type==="link"||t.type==="roll").length,0);
+  assert.equal(feature.model.rollToken('alert(1)'),null);
+  assert.equal(feature.model.rollToken('100000d6'),null);
+});
 test("snapshot is independent, records max HP, attacks and IWR exceptions, strips GM descriptions", () => {
   const { feature } = setup(); const source = actor(); const snapshot = feature.model.snapshot(source);
   source.system.attributes.hp.max = 999; source.items[0].name = "changed";
@@ -350,7 +531,7 @@ test("legacy combined lists migrate revelation without refreshing saved stats; n
   const publicDoc = game.journal.get(entry.publicId); await feature.store.saveNotes(publicDoc, "Заметка", "");
   await feature.store.repair();
   const updated = feature.store.data(doc);
-  assert.equal(updated.snapshot.presentationVersion, 3);
+  assert.equal(updated.snapshot.presentationVersion, feature.model.presentationVersion);
   const projection = feature.model.project(updated);
   assert.equal(projection.fields.filter((f) => f.id.startsWith("traits-")).length, 2);
   assert.equal(projection.fields.filter((f) => f.id.startsWith("speed-")).length, 2);

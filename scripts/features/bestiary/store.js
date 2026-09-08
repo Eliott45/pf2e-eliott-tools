@@ -22,11 +22,23 @@
     return game.i18n.localize(key);
   }
   function displayField(field) {
-    const text = feature.model.description(field.value);
-    const original = [text.original, feature.model.plain(field.original)].filter(Boolean).join("\n\n");
-    return { ...field, ...text, ...(original ? { original } : {}), label: feature.model.plain(field.label), value: field.id === "traits" || field.id.startsWith("traits-")
+    const text = feature.model.description(field.content ?? field.value);
+    const originalSource = [text.originalContent ?? text.original, field.originalContent ?? field.original].filter(Boolean).join("\n\n");
+    const original = feature.model.plain(originalSource);
+    const originalContent = feature.model.plain(originalSource, { interactive: true });
+    const table = field.group === "attacks" ? "npcAttackTraits" : field.group === "spells" ? "spellTraits" : "actionTraits";
+    return { ...field, ...text, ...(original ? { original, originalContent } : {}), traits: (field.traits ?? []).map((trait) => localize(table, trait)), label: feature.model.plain(field.label), value: field.id === "traits" || field.id.startsWith("traits-")
       ? field.value.split(",").map((trait) => localize("creatureTraits", trait.trim())).join(", ")
       : text.value };
+  }
+  function traitTooltip(label) {
+    const target = String(label).trim().toLocaleLowerCase();
+    const descriptions = CONFIG.PF2E.traitsDescriptions ?? {};
+    for (const table of ["creatureTraits", "actionTraits", "npcAttackTraits", "spellTraits", "rarityTraits"]) {
+      const key = Object.keys(CONFIG.PF2E[table] ?? {}).find((key) => key.toLocaleLowerCase() === target || localize(table, key).toLocaleLowerCase() === target);
+      if (key && typeof descriptions[key] === "string" && descriptions[key]) return descriptions[key];
+    }
+    return "";
   }
   function serialize(operation) {
     const result = pending.then(operation);
@@ -143,5 +155,5 @@
       return { sourceId: doc.id, publicId: current.publicId };
     });
   }
-  feature.store = { data, privateEntries, publicEntries, addActor, update, refresh, saveNotes, repair, reset, remove, requireGM, localize, displayField };
+  feature.store = { data, privateEntries, publicEntries, addActor, update, refresh, saveNotes, repair, reset, remove, requireGM, localize, displayField, traitTooltip };
 })();

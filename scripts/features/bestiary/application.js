@@ -87,7 +87,7 @@
       const allOpen = fields.every((field) => revealed.includes(field.id));
       const header = `<div class="eb-section-title">${this.sectionHeading(scope, title)}${this.gm ? button("group", allOpen ? "Скрыть" : "Раскрыть", `data-scope="${scope}" aria-label="${allOpen ? "Скрыть" : "Раскрыть"} раздел: ${e(title)}" ${this.busy ? "disabled" : ""}`) : ""}</div>`;
       const contents = mode === "stats" ? fields.map((field) => ["ac", "hp"].includes(field.id) || field.id.startsWith("save-") ? this.stat(field, revealed, { hp: "ОЗ", "save-fortitude": "Стойк.", "save-reflex": "Рефл.", "save-will": "Воля" }[field.id] ?? field.label) : this.field(field, revealed)).join("") :
-        mode === "tags" ? fields.map((field) => `<span class="eb-trait-tag ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span>${e(field.value)}</span>${this.reveal(field.id, revealed.includes(field.id), `${title}: ${field.value}`, true)}</span>`).join("") :
+        mode === "tags" ? fields.map((field) => `<span class="eb-trait-tag ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span${this.traitTooltip(field.value)}>${e(field.value)}</span>${this.reveal(field.id, revealed.includes(field.id), `${title}: ${field.value}`, true)}</span>`).join("") :
         mode === "facts" ? `<ul class="eb-sheet-facts">${fields.map((field) => `<li class="eb-fact-row ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span class="eb-value">${field.id === "perception" ? "Восприятие " : ""}${this.description(field)}</span>${this.reveal(field.id, revealed.includes(field.id), `${title}: ${field.value}`, true)}</li>`).join("")}</ul>` : this.fieldGroups(fields, revealed);
       return `<section class="eb-section eb-sheet-section eb-scope-${scope}">${header}<div id="eb-section-${e(this.selected)}-${scope}" class="eb-section-content eb-mode-${mode}" ${this.collapsedSections.has(`${this.selected}:${scope}`) ? "hidden" : ""}>${contents}</div></section>`;
     }
@@ -104,7 +104,7 @@
         ${this.sheetSection("saves", "Спасброски", layout.saves, revealed, "stats")}
         ${this.sheetSection("speed", "Скорости", layout.speed, revealed, "facts")}
         </aside><div class="eb-sheet-main"><header class="eb-sheet-heading"><div class="eb-title-row"><h2>${e(display.name)}</h2><div class="eb-level">${layout.level.map((field) => this.stat(field, revealed, "Существо")).join("")}</div></div>
-        <div class="eb-profile-meta">${layout.profile.map((field) => `<span class="eb-trait-tag ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span>${e(field.value)}</span>${this.reveal(field.id, revealed.includes(field.id), field.label, true)}</span>`).join("")}</div>
+        <div class="eb-profile-meta">${layout.profile.map((field) => `<span class="eb-trait-tag ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span${this.traitTooltip(field.value)}>${e(field.value)}</span>${this.reveal(field.id, revealed.includes(field.id), field.label, true)}</span>`).join("")}</div>
         ${this.sheetSection("traits", "Признаки", layout.traits, revealed, "tags")}
         ${this.gm ? `<p class="eb-hint">Сохранённая копия · ${e(new Date(data.snapshot.capturedAt).toLocaleDateString("ru"))}</p>` : `<p class="eb-hint">Известных сведений: ${display.fields.length}</p>`}</header>
         ${this.gm ? `<div class="eb-card-actions">${button("reveal-all", "Открыть всё")}${button("hide-all", "Скрыть всё")}${button("refresh", '<i class="fa-solid fa-rotate" aria-hidden="true"></i> Обновить из источника')}${button("remove", '<i class="fa-solid fa-trash-can" aria-hidden="true"></i> Удалить запись', `class="eb-danger" ${this.busy ? "disabled" : ""}`)}</div>` : ""}
@@ -132,7 +132,19 @@
       }).join("");
     }
     description(field) {
-      return `${e(field.value)}${field.original ? `<details class="eb-original" data-original="${e(`${this.selected}:${field.id}`)}"><summary>Оригинал</summary><div class="eb-original-text">${e(field.original)}</div></details>` : ""}`;
+      return `${this.richText(field)}${field.original ? `<details class="eb-original" data-original="${e(`${this.selected}:${field.id}`)}"><summary>Оригинал</summary><div class="eb-original-text">${this.richText(field, true)}</div></details>` : ""}`;
+    }
+    traitTooltip(label) {
+      const tooltip = feature.store.traitTooltip(label);
+      return tooltip ? ` data-tooltip="${e(tooltip)}" data-tooltip-class="pf2e" tabindex="0"` : "";
+    }
+    richText(field, original = false) {
+      return feature.model.tokens(field, original).map((token, index) => {
+        if (token.type === "text") return e(token.text);
+        if (token.type === "trait") return `<span class="eb-inline-trait"${this.traitTooltip(token.label)}>${e(token.label)}</span>`;
+        const link = token.type === "link";
+        return `<a href="#" class="${link ? "content-link eb-reference-link" : "eb-inline-roll"}${token.damage ? " eb-damage-roll" : ""}" data-command="${link ? "reference" : "roll"}" data-field="${e(field.id)}" data-token="${index}" data-original-part="${original}" aria-label="${link ? "Открыть" : "Бросить"}: ${e(token.label)}"><i class="fa-solid ${link ? "fa-file-lines" : token.damage ? "fa-burst" : "fa-dice-d20"}" aria-hidden="true"></i> ${e(token.label)}</a>`;
+      }).join("");
     }
     field(field, revealed) {
       const classes = `eb-field ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}`;
@@ -144,7 +156,9 @@
         const toggle = button("spell-toggle", `<i class="fa-solid ${expanded ? "fa-chevron-up" : "fa-chevron-down"}" aria-hidden="true"></i>`, `class="eb-spell-toggle" data-field="${e(field.id)}" aria-expanded="${expanded}" aria-label="${e(toggleLabel)}" title="${e(toggleLabel)}"`);
         return `<article class="${classes} eb-spell-card"><div class="eb-spell-row">${toggle}<span class="eb-spell-name"><a class="content-link eb-spell-link" href="#" data-command="spell" data-field="${e(field.id)}"${destination} aria-label="Открыть заклинание: ${e(field.label)}"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> ${e(field.label)}</a></span><span class="eb-spell-rank">Ранг ${e(field.spell.rank)}</span>${this.reveal(field.id, revealed.includes(field.id), field.label)}</div>${expanded ? `<div class="eb-value eb-spell-description">${this.description(field)}</div>` : ""}</article>`;
       }
-      return `<article class="${classes}"><div class="eb-field-title"><h4>${e(field.label)}</h4>${this.reveal(field.id, revealed.includes(field.id), field.label)}</div><div class="eb-value">${this.description(field)}</div></article>`;
+      const separator = field.group === "abilities" ? field.label.lastIndexOf(" · ") : -1;
+      const heading = separator >= 0 ? `${e(field.label.slice(0, separator))}<span class="eb-action-cost">${e(field.label.slice(separator + 3))}</span>` : e(field.label);
+      return `<article class="${classes}"><div class="eb-field-title"><h4>${heading}</h4>${this.reveal(field.id, revealed.includes(field.id), field.label)}</div><div class="eb-value">${this.description(field)}</div></article>`;
     }
     _onRender(context, options) {
       super._onRender(context, options);
@@ -162,7 +176,7 @@
         event.preventDefault();
         // We handle permission checks and missing-source fallback ourselves;
         // prevent Foundry's delegated content-link handler opening a second sheet.
-        if (node.dataset.command === "spell") event.stopPropagation();
+        if (["spell", "reference", "roll"].includes(node.dataset.command)) event.stopPropagation();
         void this.command(node);
       }));
       const shell = root.querySelector(".eb-shell");
@@ -233,6 +247,35 @@
       }
       const row = this.entries().find((entry) => entry.doc.id === this.selected);
       if (!row) return;
+      if (command === "roll" || command === "reference") {
+        const field = row.display.fields.find((field) => field.id === node.dataset.field);
+        if (!field || !/^\d+$/.test(node.dataset.token ?? "")) return;
+        const token = feature.model.tokens(field, node.dataset.originalPart === "true")[Number(node.dataset.token)];
+        if (command === "reference" && token?.type === "link") {
+          return this.perform(async () => {
+            const document = feature.model.itemUuid(token.uuid) ? await fromUuid(token.uuid).catch(() => null) : null;
+            if (document?.documentName !== "Item" || !document.testUserPermission(game.user, "LIMITED")) {
+              ui.notifications.warn("Запись недоступна или удалена из компендиума.");
+              return;
+            }
+            const sheet = document.sheet;
+            if (sheet instanceof foundry.applications.api.ApplicationV2) {
+              await sheet.render({ force: true, window: { detached: false } });
+              sheet.bringToFront();
+            } else sheet.render(true, { focus: true });
+          });
+        }
+        if (command === "roll" && token?.type === "roll") {
+          return this.perform(async () => {
+            const RollClass = token.damage ? CONFIG.Dice.rolls.find((type) => type.name === "DamageRoll") : Roll;
+            if (!RollClass || !RollClass.validate(token.formula)) throw new Error("Эту формулу не удалось разобрать. Проверьте описание в источнике.");
+            const roll = new RollClass(token.formula, {}, { rollerId: game.user.id });
+            await roll.toMessage({ speaker: { alias: row.display.name }, flavor: e([row.display.name, field.label, token.flavor].filter(Boolean).join(" · ")) },
+              { rollMode: game.settings.get("core", "rollMode") });
+          });
+        }
+        return;
+      }
       if (command === "section-toggle") {
         const scope = node.dataset.scope;
         if (scope !== "notes" && !this.layoutFields(row.display.fields)[scope]?.length) return;
@@ -270,7 +313,7 @@
             return;
           }
           await foundry.applications.api.DialogV2.wait({ window: { title: field.label }, position: { width: 600 },
-            content: `<p>Оригинал недоступен. Сохранённое описание · Ранг ${e(field.spell.rank)}</p><div style="white-space:pre-wrap">${this.description(field)}</div>`,
+            content: `<p>Оригинал недоступен. Сохранённое описание · Ранг ${e(field.spell.rank)}</p><div style="white-space:pre-wrap">${e(field.value)}${field.original ? `<details><summary>Оригинал</summary>${e(field.original)}</details>` : ""}</div>`,
             buttons: [{ action: "close", label: "Закрыть", default: true }], rejectClose: false });
         });
       }

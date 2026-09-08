@@ -3,8 +3,9 @@
   const feature = ((tools.features ??= {}).bestiary ??= {});
   const groups = { defenses: "Защиты", attacks: "Атаки", abilities: "Способности", spells: "Заклинания", overview: "Общее", lore: "Описание" };
   const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  // Descriptions are deliberately plain text: no secret HTML sections, UUID links,
-  // executable markup or enrichment which could expose the original actor.
+  // Keep plain text for snapshots and a restricted text representation for links
+  // and dice. Never publish actor references, secret HTML or executable markup.
+  const itemUuid = (uuid) => /^Compendium\.[\w-]+\.[\w-]+\.(?:Item\.)?[\w-]+$/.test(uuid ?? "");
   function localizedText(value, localize) {
     let text = String(value ?? "");
     // PF2e glossary descriptions can contain further localization references.
@@ -17,13 +18,14 @@
     if (localize) text = text.replace(/@Localize\[[^\]]+\]/g, "Описание недоступно.");
     return text;
   }
-  function plain(value, { localize = true } = {}) {
+  function plain(value, { localize = true, interactive = false } = {}) {
     const text = localizedText(value, localize);
     return text
       .replace(/<section\b[^>]*class=["'][^"']*\bsecret\b[^"']*["'][^>]*>[\s\S]*?<\/section>/gi, "")
       .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
-      .replace(/@(?:UUID|Compendium)\[[^\]]*\](?:\{([^}]+)\})?/g, (_m, label) => label ?? "")
-      .replace(/@(?:Check|Damage|Template)\[([^\]]*)\](?:\{([^}]+)\})?/g, (_m, formula, label) => label ?? formula)
+      .replace(/@(?:UUID|Compendium)\[([^\]]*)\](?:\{([^}]+)\})?/g, (match, uuid, label) => interactive && itemUuid(uuid.startsWith("Compendium.") ? uuid : `Compendium.${uuid}`) ? match : label ?? "")
+      .replace(/@Damage\[((?:[^\[\]]|\[[^\[\]]*\])*)\](?:\{([^}]+)\})?/g, (match, formula, label) => interactive ? match : label ?? formula)
+      .replace(/@(?:Check|Template)\[([^\]]*)\](?:\{([^}]+)\})?/g, (_m, formula, label) => label ?? formula)
       .replace(/@(?:Trait|Item|Actor|RollTable)\[[^\]]*\]\{([^}]+)\}/g, "$1")
       // The Russian translation supplies the inflected, readable label for
       // units and conditions (e.g. @Unit[Mile|1]{1 мили}).
@@ -39,10 +41,10 @@
       .replace(/<section\b[^>]*class=["'][^"']*\bsecret\b[^"']*["'][^>]*>[\s\S]*?<\/section>/gi, "")
       .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, "");
     const text = safeText.replace(/<details\b[^>]*>\s*<summary\b[^>]*>\s*(?:Оригинал|Original)\s*<\/summary>([\s\S]*?)<\/details>/gi, (_match, original) => {
-      originals.push(plain(original, { localize }));
+      originals.push(plain(original, { localize, interactive: true }));
       return "";
     });
-    let translated = plain(text, { localize });
+    let translated = plain(text, { localize, interactive: true });
     // Older snapshots flattened Babele's summary into "ОригиналA redcap...".
     // Only recognize a line-leading marker followed by English, not ordinary prose.
     if (!originals.length) {
@@ -52,11 +54,14 @@
         translated = translated.slice(0, marker.index).trim();
       }
     }
-    const original = originals.filter(Boolean).join("\n\n");
-    return { value: translated, ...(original ? { original } : {}) };
+    const originalContent = originals.filter(Boolean).join("\n\n");
+    const valueText = plain(translated, { localize });
+    const original = plain(originalContent, { localize });
+    return { value: valueText, ...(translated !== valueText ? { content: translated } : {}),
+      ...(original ? { original, ...(originalContent !== original ? { originalContent } : {}) } : {}) };
   }
   const signed = (v) => Number(v) >= 0 ? `+${v}` : String(v);
-  const presentationVersion = 3;
+  const presentationVersion = 4;
   const listLabels = { traits: "Признак", senses: "Чувство", speed: "Скорость", languages: "Язык", immunities: "Иммунитеты", weaknesses: "Слабости", resistances: "Сопротивления" };
   function listFields(category, values, group = "overview") {
     const unique = [...new Set(values.map((value) => plain(value, { localize: false })).filter(Boolean))];
@@ -72,6 +77,7 @@
     const data = item.system ?? {};
     const origin = item._stats?.compendiumSource ?? item._source?._stats?.compendiumSource ?? item.flags?.core?.sourceId ?? item.uuid;
     return { id: `item-${item.id ?? item._id}`, group: "spells", label: plain(item.name), ...description(data.description?.value || "Описание отсутствует.", { localize: false }),
+      traits: (data.traits?.value ?? []).map((trait) => plain(trait)),
       spell: { rank: item.rank ?? data.location?.heightenedLevel ?? data.level?.value ?? 0,
         // Only a standalone compendium spell may be opened by players.
         uuid: typeof origin === "string" && origin.startsWith("Compendium.") ? origin : null } };
@@ -85,7 +91,7 @@
         if (revealed.delete(field.id)) for (const part of parts) revealed.add(part.id);
         return parts;
       }
-      if (field.group !== "spells" || field.spell) return [field];
+      if (field.group !== "spells" || field.spell) return [{ ...field }];
       const rank = field.label.match(/ · ранг (\d+)$/);
       if (!rank) return []; // Old spellcasting DC/attack headers are no longer displayed.
       const item = actor?.items?.find((item) => `item-${item.id ?? item._id}` === field.id && item.type === "spell");
@@ -99,6 +105,17 @@
     if (!fields.some((field) => field.id.startsWith("languages-"))) {
       // Earlier snapshots did not capture languages. Never claim absence without a source.
       fields.push(...(actor ? languageFields(actor.system, localize) : [{ id: "languages-unknown", group: "overview", label: "Языки", value: "Не сохранены в старой карточке. Источник недоступен." }]));
+    }
+    // Recover only presentation from an unchanged source field. Never refresh
+    // saved stats or introduce new descriptions during this migration.
+    const current = actor ? snapshot(actor, localize).fields : [];
+    const legacyDamage = (value) => plain(String(value ?? "").replace(/@Damage\[([^\]]*)\](?:\{([^}]+)\})?/g, (_match, formula, label) => label ?? formula), { localize: false });
+    for (const field of fields) {
+      const candidate = current.find((next) => next.id === field.id);
+      if (!candidate || candidate.label !== field.label
+        || (candidate.value !== field.value && legacyDamage(candidate.content ?? candidate.value) !== field.value)
+        || (candidate.original !== field.original && legacyDamage(candidate.originalContent ?? candidate.original) !== field.original)) continue;
+      for (const key of ["content", "originalContent", "traits"]) if (candidate[key]) field[key] = candidate[key];
     }
     const valid = new Set(["name", "image", ...fields.map((field) => field.id)]);
     return { ...entry, snapshot: { ...entry.snapshot, fields, presentationVersion }, revealed: [...revealed].filter((key) => valid.has(key)) };
@@ -148,9 +165,11 @@
         const bonus = action?.totalModifier ?? data.bonus?.value;
         const damage = Object.values(data.damageRolls ?? {}).map((v) => `${v.damage} ${localize("damageTypes", v.damageType)}`).join(" + ");
         add(`item-${id}`, "attacks", item.name, [bonus != null ? `Атака ${signed(bonus)}` : "", damage, list("npcAttackTraits", data.traits?.value), data.description?.value].filter(Boolean).join("\n"));
+        if (fields.at(-1)?.id === `item-${id}`) fields.at(-1).traits = (data.traits?.value ?? []).map((trait) => plain(localize("npcAttackTraits", trait)));
       } else if (item.type === "action") {
         const cost = { reaction: "Реакция", free: "Свободное действие", passive: "Пассивная" }[data.actionType?.value] ?? `${data.actions?.value ?? 1} д.`;
         add(`item-${id}`, "abilities", `${item.name} · ${cost}`, [list("actionTraits", data.traits?.value), data.description?.value || "Описание отсутствует."].filter(Boolean).join("\n"));
+        fields.at(-1).traits = (data.traits?.value ?? []).map((trait) => plain(localize("actionTraits", trait)));
       } else if (item.type === "spell") {
         fields.push(spellField(item));
       }
@@ -169,8 +188,11 @@
       version: 1,
       name: entry.snapshot.name,
       img: entry.revealed.includes("image") ? entry.snapshot.img : "icons/svg/mystery-man.svg",
-      fields: entry.snapshot.fields.filter((f) => entry.revealed.includes(f.id)).map(({ id, group, label, value, original, spell }) => ({ id, group, label, value,
+      fields: entry.snapshot.fields.filter((f) => entry.revealed.includes(f.id)).map(({ id, group, label, value, original, content, originalContent, traits, spell }) => ({ id, group, label, value,
         ...(original ? { original } : {}),
+        ...(content ? { content: plain(content, { localize: false, interactive: true }) } : {}),
+        ...(originalContent ? { originalContent: plain(originalContent, { localize: false, interactive: true }) } : {}),
+        ...(traits?.length ? { traits: traits.map((trait) => plain(trait, { localize: false })) } : {}),
         ...(spell ? { spell: { rank: spell.rank, uuid: typeof spell.uuid === "string" && spell.uuid.startsWith("Compendium.") ? spell.uuid : null } } : {}) })),
     };
   }
@@ -178,8 +200,95 @@
     const valid = new Set(["name", "image", ...next.fields.map((f) => f.id)]);
     // Changed facts return to hidden: a refresh must never silently publish new text.
     const unchanged = (id) => id === "image" ? entry.snapshot.img === next.img : id === "name" ? entry.snapshot.name === next.name :
-      entry.snapshot.fields.some((old) => old.id === id && next.fields.some((f) => f.id === id && f.label === old.label && f.value === old.value && f.original === old.original && JSON.stringify(f.spell) === JSON.stringify(old.spell)));
+      entry.snapshot.fields.some((old) => old.id === id && next.fields.some((f) => f.id === id && f.label === old.label && f.value === old.value && f.original === old.original && f.content === old.content && f.originalContent === old.originalContent && JSON.stringify(f.traits) === JSON.stringify(old.traits) && JSON.stringify(f.spell) === JSON.stringify(old.spell)));
     return { ...entry, snapshot: next, revealed: entry.revealed.filter((id) => valid.has(id) && unchanged(id)) };
   }
-  feature.model = { groups, escape, plain, description, snapshot, project, refresh, spellField, upgrade, presentationVersion };
+  function damageLabel(formula) {
+    return formula.replace(/\[([a-z][a-z, -]*)\]/gi, (_match, types) => ` ${types.split(",").map((type) => {
+      const slug = type.trim();
+      return feature.store.localize("damageRollFlavors", slug) !== slug
+        ? feature.store.localize("damageRollFlavors", slug) : feature.store.localize("damageTypes", slug);
+    }).join(", ")}`).replace(/\s+/g, " ").trim();
+  }
+  function rollToken(value, { damage = false, label } = {}) {
+    // Foundry's # suffix is roll flavor, not part of the dice formula or label.
+    const hash = value.indexOf("#");
+    const flavor = hash >= 0 ? plain(value.slice(hash + 1)) : "";
+    const formula = (hash >= 0 ? value.slice(0, hash) : value).replace(/[дДD]/g, "d").replace(/[−–]/g, "-").trim();
+    const numeric = formula.replace(/\[[a-z][a-z, -]*\]/gi, "");
+    // No actor roll data, commands, functions or unbounded dice in saved text.
+    if (formula.length > 500 || !/^[\d\sd+*/().,{}-]+$/.test(numeric) || /\d\s+\d/.test(numeric)
+      || (!damage && !/\d*d\d+/.test(numeric))) return null;
+    if ([...numeric.matchAll(/(\d*)d(\d+)/g)].some((match) => Number(match[1] || 1) > 1000 || Number(match[2]) > 10000 || Number(match[2]) < 1)) return null;
+    return { type: "roll", formula, damage, label: label || damageLabel(formula), ...(flavor ? { flavor } : {}) };
+  }
+  function tokens(field, original = false) {
+    const value = original ? field.originalContent ?? field.original ?? "" : field.content ?? field.value ?? "";
+    const result = [];
+    const text = (value) => { if (value) result.push({ type: "text", text: value }); };
+    const traitNames = new Map();
+    for (const table of ["creatureTraits", "actionTraits", "npcAttackTraits", "spellTraits"]) {
+      for (const key of Object.keys(globalThis.CONFIG?.PF2E?.[table] ?? {})) {
+        const label = feature.store.localize(table, key);
+        traitNames.set(key.toLocaleLowerCase(), label);
+        traitNames.set(label.toLocaleLowerCase(), label);
+      }
+    }
+    for (const label of field.traits ?? []) traitNames.set(label.toLocaleLowerCase(), label);
+    const damageNames = Object.keys(globalThis.CONFIG?.PF2E?.damageTypes ?? {}).flatMap((slug) =>
+      [slug, feature.store.localize("damageTypes", slug), feature.store.localize("damageRollFlavors", slug)].map((name) => ({ slug, name }))
+    ).sort((a, b) => b.name.length - a.name.length);
+    function prose(source) {
+      const dice = /(?<![\p{L}\d@])(?:\d+|(?=[dд]))[dд]\d+(?:\s*[+−–-]\s*(?:\d+[dд]\d+|\d+))*(?:\[[a-z][a-z, -]*\])?(?:\{([^}]+)\})?/giu;
+      let cursor = 0;
+      for (const match of source.matchAll(dice)) {
+        if (match.index < cursor) continue;
+        text(source.slice(cursor, match.index));
+        const tail = source.slice(match.index + match[0].length);
+        const suffix = damageNames.find(({ name }) => tail.trimStart().toLocaleLowerCase().startsWith(name.toLocaleLowerCase())
+          && !/\p{L}/u.test(tail.trimStart().slice(name.length, name.length + 1)));
+        const expression = match[0].replace(/\{[^}]+\}$/, "");
+        const hasType = expression.includes("[");
+        const formula = suffix && !hasType ? `${expression}[${suffix.slug}]` : expression;
+        const token = rollToken(formula, { damage: hasType || !!suffix, label: match[1] });
+        if (token) result.push(token); else text(match[0]);
+        cursor = match.index + match[0].length;
+        if (token && suffix && !hasType) cursor += tail.length - tail.trimStart().length + suffix.name.length;
+      }
+      text(source.slice(cursor));
+    }
+    let hasTraitLine = false;
+    for (const [index, line] of value.split("\n").entries()) {
+      if (index) text("\n");
+      const traits = line.split(/,\s*/).map((part) => part.trim());
+      if (!original && traits.length && traits.every((trait) => traitNames.has(trait.toLocaleLowerCase()))) {
+        hasTraitLine = true;
+        for (const trait of traits) result.push({ type: "trait", label: traitNames.get(trait.toLocaleLowerCase()) });
+        continue;
+      }
+      if (field.group === "attacks" && /^Атака [+-]\d+$/.test(line)) {
+        result.push(rollToken(`1d20${line.slice(6)}`, { label: line }));
+        continue;
+      }
+      const markup = /@(?:UUID|Compendium)\[([^\]]+)\](?:\{([^}]+)\})?|@Damage\[((?:[^\[\]]|\[[^\[\]]*\])*)\](?:\{([^}]+)\})?|\[\[(?:\/r(?:oll)?\s+)?((?:[^\[\]]|\[[^\[\]]*\])*)\]\](?:\{([^}]+)\})?/g;
+      let cursor = 0;
+      for (const match of line.matchAll(markup)) {
+        prose(line.slice(cursor, match.index));
+        if (match[1]) {
+          const uuid = match[1].startsWith("Compendium.") ? match[1] : `Compendium.${match[1]}`;
+          if (itemUuid(uuid)) result.push({ type: "link", uuid, label: match[2] || "Открыть запись" });
+          else text(match[2] || "");
+        } else {
+          const formula = (match[3] ?? match[5]).split("|")[0];
+          const token = rollToken(formula, { damage: match[3] !== undefined || formula.includes("["), label: match[4] ?? match[6] });
+          if (token) result.push(token); else text(match[4] ?? match[6] ?? damageLabel(formula));
+        }
+        cursor = match.index + match[0].length;
+      }
+      prose(line.slice(cursor));
+    }
+    if (!original && !hasTraitLine && field.traits?.length) result.unshift(...field.traits.map((label) => ({ type: "trait", label })), { type: "text", text: "\n" });
+    return result;
+  }
+  feature.model = { groups, escape, plain, description, snapshot, project, refresh, spellField, upgrade, presentationVersion, itemUuid, tokens, rollToken };
 })();

@@ -100,9 +100,19 @@
 .eliott-bestiary .eb-sheet-sidebar .eb-value { font-size: 12px; }
 .eliott-bestiary .eb-field { background: #fff9e54d; border: 1px solid #b6a27d80; border-radius: 2px; padding: 13px 15px; min-width: 0; }
 .eliott-bestiary .eb-field.is-hidden { border-style: dashed; }
-.eliott-bestiary .eb-field-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+.eliott-bestiary .eb-field-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .eliott-bestiary h4 { font-size: 12px; color: var(--eb-muted); line-height: 1.5; }
+.eliott-bestiary .eb-field-title > h4 { flex: 1; min-width: 0; color: #303c26; font-family: var(--font-primary, sans-serif); font-size: 18px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.eliott-bestiary .eb-action-cost { display: block; margin-top: 4px; color: var(--eb-muted); font-size: 11px; font-weight: 500; line-height: 1.4; }
+.eliott-bestiary :is(.eb-inline-trait,.eb-trait-tag > span)[data-tooltip] { cursor: help; }
+.eliott-bestiary :is(.eb-inline-trait,.eb-trait-tag > span)[data-tooltip]:focus-visible { outline: 2px solid var(--eb-accent); outline-offset: 2px; }
 .eliott-bestiary .eb-value { font-family: Georgia, "Times New Roman", serif; font-size: 15px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.eliott-bestiary .eb-inline-trait { display: inline-block; margin: 2px 5px 3px 0; padding: 1px 7px; border: 1px solid #8c9872; border-radius: 3px; background: #dce1c7; color: #38492b; font: 600 11px/1.7 var(--font-primary, sans-serif); vertical-align: baseline; }
+.eliott-bestiary :is(.eb-inline-roll,.eb-reference-link) { display: inline-block; max-width: 100%; margin: 1px 0; padding: 1px 6px; border: 1px solid #8b9ca6; border-radius: 3px; background: #dce5e8; color: #304e60; font: 600 12px/1.6 var(--font-primary, sans-serif); text-decoration: none; text-shadow: none; vertical-align: baseline; cursor: pointer; overflow-wrap: anywhere; white-space: normal; }
+.eliott-bestiary .eb-damage-roll { background: #ecd6c4; border-color: #b38a68; color: #743e26; }
+.eliott-bestiary .eb-reference-link { background: #e2e6c9; border-color: #a0a97c; color: #425735; }
+.eliott-bestiary :is(.eb-inline-roll,.eb-reference-link):hover { filter: brightness(.94); text-shadow: none; outline: 1px solid currentColor; }
+.eliott-bestiary :is(.eb-inline-roll,.eb-reference-link) > i { color: inherit; }
 .eliott-bestiary .eb-original { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--eb-line); white-space: normal; }
 .eliott-bestiary .eb-original > summary { display: list-item; cursor: pointer; width: fit-content; color: var(--eb-accent); font-size: 12px; font-weight: 600; }
 .eliott-bestiary .eb-original > summary:hover { color: #233c1c; }
