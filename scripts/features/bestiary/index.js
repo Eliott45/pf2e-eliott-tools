@@ -16,7 +16,7 @@
       if (!accepted) return false;
       await feature.store.reset();
       for (const window of feature.windows) {
-        window.drafts.clear(); window.expandedSpells.clear(); window.selected = null; window.query = "";
+        window.drafts.clear(); window.expandedSpells.clear(); window.collapsedSections.clear(); window.selected = null; window.query = "";
         if (window.rendered) await window.render();
       }
       ui.notifications.info("Данные бестиария сброшены.");

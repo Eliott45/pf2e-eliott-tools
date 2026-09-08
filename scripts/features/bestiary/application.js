@@ -16,6 +16,7 @@
     preview = false;
     drafts = new Map();
     expandedSpells = new Set();
+    collapsedSections = new Set();
     busy = false;
     get gm() { return game.user.isGM && !this.preview; }
     entries() {
@@ -77,14 +78,18 @@
     stat(field, revealed, label = field.label) {
       return `<article class="eb-stat ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span class="eb-stat-label">${e(label)}</span><strong class="eb-stat-value">${e(field.value)}</strong>${this.reveal(field.id, revealed.includes(field.id), field.label, true)}</article>`;
     }
+    sectionHeading(scope, title) {
+      const collapsed = this.collapsedSections.has(`${this.selected}:${scope}`);
+      return `<h3>${button("section-toggle", `<i class="fa-solid ${collapsed ? "fa-chevron-right" : "fa-chevron-down"}" aria-hidden="true"></i><span>${e(title)}</span>`, `class="eb-section-toggle" data-scope="${scope}" aria-expanded="${!collapsed}" aria-controls="eb-section-${e(this.selected)}-${scope}" aria-label="${collapsed ? "Развернуть" : "Свернуть"} раздел: ${e(title)}"`)}</h3>`;
+    }
     sheetSection(scope, title, fields, revealed, mode = "cards") {
       if (!fields.length) return "";
       const allOpen = fields.every((field) => revealed.includes(field.id));
-      const header = `<div class="eb-section-title"><h3>${e(title)}</h3>${this.gm ? button("group", allOpen ? "Скрыть" : "Раскрыть", `data-scope="${scope}" aria-label="${allOpen ? "Скрыть" : "Раскрыть"} раздел: ${e(title)}" ${this.busy ? "disabled" : ""}`) : ""}</div>`;
+      const header = `<div class="eb-section-title">${this.sectionHeading(scope, title)}${this.gm ? button("group", allOpen ? "Скрыть" : "Раскрыть", `data-scope="${scope}" aria-label="${allOpen ? "Скрыть" : "Раскрыть"} раздел: ${e(title)}" ${this.busy ? "disabled" : ""}`) : ""}</div>`;
       const contents = mode === "stats" ? fields.map((field) => ["ac", "hp"].includes(field.id) || field.id.startsWith("save-") ? this.stat(field, revealed, { hp: "ОЗ", "save-fortitude": "Стойк.", "save-reflex": "Рефл.", "save-will": "Воля" }[field.id] ?? field.label) : this.field(field, revealed)).join("") :
         mode === "tags" ? fields.map((field) => `<span class="eb-trait-tag ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span>${e(field.value)}</span>${this.reveal(field.id, revealed.includes(field.id), `${title}: ${field.value}`, true)}</span>`).join("") :
         mode === "facts" ? `<ul class="eb-sheet-facts">${fields.map((field) => `<li class="eb-fact-row ${this.gm && !revealed.includes(field.id) ? "is-hidden" : ""}"><span class="eb-value">${field.id === "perception" ? "Восприятие " : ""}${this.description(field)}</span>${this.reveal(field.id, revealed.includes(field.id), `${title}: ${field.value}`, true)}</li>`).join("")}</ul>` : this.fieldGroups(fields, revealed);
-      return `<section class="eb-section eb-sheet-section eb-scope-${scope}">${header}<div class="eb-section-content eb-mode-${mode}">${contents}</div></section>`;
+      return `<section class="eb-section eb-sheet-section eb-scope-${scope}">${header}<div id="eb-section-${e(this.selected)}-${scope}" class="eb-section-content eb-mode-${mode}" ${this.collapsedSections.has(`${this.selected}:${scope}`) ? "hidden" : ""}>${contents}</div></section>`;
     }
     card(entry) {
       const { display, data, publicDoc } = entry;
@@ -111,7 +116,7 @@
         ${this.sheetSection("spells", "Заклинания", layout.spells, revealed)}
         ${this.sheetSection("lore", "Описание", layout.lore, revealed)}
         ${!display.fields.length ? `<div class="eb-unknown"><i class="fa-solid fa-compass" aria-hidden="true"></i><h3>Это существо ещё предстоит изучить</h3><p>Открытые мастером сведения появятся здесь.</p></div>` : ""}
-        <section class="eb-section eb-notes"><div class="eb-section-title"><h3>Заметки группы</h3><span class="eb-hint">Общие для всех</span></div>${editableNotes ? `<textarea data-notes aria-label="Заметки группы" placeholder="Что вы заметили? Как с ним сражаться?">${e(notes)}</textarea><div class="eb-note-actions"><span class="eb-hint">${this.drafts.has(publicDoc.id) ? "Есть несохранённый текст" : "Записывайте наблюдения и догадки"}</span>${button("save-notes", "Сохранить заметки", this.busy ? "disabled" : "")}</div>` : `<p class="eb-value">${e(notes || "Наблюдений пока нет.")}</p>`}</section></div></div>`;
+        <section class="eb-section eb-notes"><div class="eb-section-title">${this.sectionHeading("notes", "Заметки группы")}<span class="eb-hint">Общие для всех</span></div><div id="eb-section-${e(this.selected)}-notes" class="eb-notes-content" ${this.collapsedSections.has(`${this.selected}:notes`) ? "hidden" : ""}>${editableNotes ? `<textarea data-notes aria-label="Заметки группы" placeholder="Что вы заметили? Как с ним сражаться?">${e(notes)}</textarea><div class="eb-note-actions"><span class="eb-hint">${this.drafts.has(publicDoc.id) ? "Есть несохранённый текст" : "Записывайте наблюдения и догадки"}</span>${button("save-notes", "Сохранить заметки", this.busy ? "disabled" : "")}</div>` : `<p class="eb-value">${e(notes || "Наблюдений пока нет.")}</p>`}</div></section></div></div>`;
     }
     fieldGroups(fields, revealed) {
       const blocks = new Map();
@@ -193,8 +198,8 @@
     forgetEntry(sourceId, publicId) {
       this.drafts.delete(sourceId); this.drafts.delete(publicId);
       if (this.selected === sourceId || this.selected === publicId) this.selected = null;
-      for (const key of this.expandedSpells) {
-        if (key.startsWith(`${sourceId}:`) || (publicId && key.startsWith(`${publicId}:`))) this.expandedSpells.delete(key);
+      for (const state of [this.expandedSpells, this.collapsedSections]) {
+        for (const key of state) if (key.startsWith(`${sourceId}:`) || (publicId && key.startsWith(`${publicId}:`))) state.delete(key);
       }
     }
     async command(node) {
@@ -228,6 +233,15 @@
       }
       const row = this.entries().find((entry) => entry.doc.id === this.selected);
       if (!row) return;
+      if (command === "section-toggle") {
+        const scope = node.dataset.scope;
+        if (scope !== "notes" && !this.layoutFields(row.display.fields)[scope]?.length) return;
+        const key = `${this.selected}:${scope}`;
+        if (!this.collapsedSections.delete(key)) this.collapsedSections.add(key);
+        await this.render();
+        this.element?.querySelector(`[data-command="section-toggle"][data-scope="${scope}"]`)?.focus();
+        return;
+      }
       if (command === "spell-toggle") {
         const field = row.display.fields.find((field) => field.id === node.dataset.field && field.spell);
         if (!field) return;

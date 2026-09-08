@@ -61,6 +61,13 @@
 .eliott-bestiary .eb-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .eliott-bestiary h3 { font-size: 16px; font-weight: 650; }
 .eliott-bestiary .eb-section-title button { background: transparent; border: 0; color: var(--eb-accent); font-size: 11px; }
+.eliott-bestiary .eb-section-title > h3 { flex: 1; min-width: 0; }
+.eliott-bestiary .eb-section-title > button { flex-shrink: 0; }
+.eliott-bestiary .eb-section-title h3 > .eb-section-toggle { display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; min-height: 24px; margin: 0; padding: 2px 0; font: inherit; color: inherit; text-align: left; }
+.eliott-bestiary .eb-section-toggle > i { flex-shrink: 0; margin: 0; font-size: 10px; }
+.eliott-bestiary .eb-section-toggle > span { min-width: 0; overflow-wrap: anywhere; }
+.eliott-bestiary .eb-section-toggle:hover { color: var(--eb-accent); }
+.eliott-bestiary :is(.eb-section-content,.eb-notes-content)[hidden] { display: none; }
 .eliott-bestiary .eb-fields { display: grid; gap: 9px; }
 .eliott-bestiary .eb-sheet-section { margin-top: 14px; border: 1px solid var(--eb-line); border-radius: 6px; overflow: hidden; }
 .eliott-bestiary .eb-sheet-section > .eb-section-title { margin: 0; padding: 7px 10px; background: #2a403d; gap: 6px; }
