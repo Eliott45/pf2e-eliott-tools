@@ -10,7 +10,7 @@ const mainSource = read("scripts/main.js");
 const recoverySource = read("scripts/features/frightened-recovery.js");
 const flush = () => new Promise(setImmediate);
 
-function setup({ loaded = false, bestiaryLoaded = true, controlsVersion = 14 } = {}) {
+function setup({ loaded = false, bestiaryLoaded = true, runesLoaded = true, controlsVersion = 14 } = {}) {
   const hooks = new Map();
   const scripts = [];
   const errors = [];
@@ -47,10 +47,12 @@ function setup({ loaded = false, bestiaryLoaded = true, controlsVersion = 14 } =
     combatTrackerEnhancements: { onUpdateCombat: () => trackerUpdates++ },
     worldClock: { onInit: noOp, onReady: noOp }, preciousMaterialArmor: {},
     weaponFamiliarity: { onInit: noOp },
+    energyResistantRunes: { onInit: noOp },
     bestiary: { initialize: noOp },
     regaliaIntensify: { initialize: noOp },
   };
   if (!bestiaryLoaded) delete context.pf2eEliottTools.features.bestiary;
+  if (!runesLoaded) delete context.pf2eEliottTools.features.energyResistantRunes;
   if (loaded) vm.runInContext(recoverySource, context);
   vm.runInContext(mainSource, context);
   const emit = (name, ...args) => hooks.get(name)?.forEach((fn) => fn(...args));
@@ -153,6 +155,37 @@ test("a missing bestiary dependency stops its load chain and preserves other fea
   env.emit("ready"); env.scripts[0].onerror(); await flush();
   assert.equal(env.scripts.length, 1);
   assert.match(env.notifications[0], /бестиарий/);
+  env.emit("updateCombat", {}, { turn: 1 });
+  assert.equal(env.trackerUpdates, 1);
+});
+
+test("cached manifest loads rune automation then recalculates world and synthetic actors once", async () => {
+  const env = setup({ loaded: true, runesLoaded: false });
+  const calls = [];
+  const actor = { reset: () => calls.push("world") };
+  const synthetic = { reset: () => calls.push("synthetic") };
+  env.context.game.actors = { contents: [actor] };
+  env.context.canvas = { tokens: { placeables: [{ actor }, { actor: synthetic }, { actor: null }] } };
+  env.emit("init");
+  assert.equal(env.settings.get("energyResistantRunesEnabled").default, true);
+  assert.equal(env.settings.get("energyResistantRunesEnabled").requiresReload, true);
+  env.emit("ready");
+  assert.equal(env.scripts.length, 1);
+  assert.match(env.scripts[0].src, /energy-resistant-runes\.js$/);
+  env.context.pf2eEliottTools.features.energyResistantRunes = { onInit: () => calls.push("install") };
+  env.scripts[0].onload();
+  await flush();
+  assert.deepEqual(calls, ["install", "world", "synthetic"]);
+  assert.deepEqual(env.errors, []);
+});
+
+test("rune loader failure is visible and leaves existing combat features working", async () => {
+  const env = setup({ loaded: true, runesLoaded: false });
+  env.emit("ready");
+  env.scripts[0].onerror();
+  await flush();
+  assert.equal(env.errors.length, 1);
+  assert.match(env.notifications[0], /рун сопротивления энергии/);
   env.emit("updateCombat", {}, { turn: 1 });
   assert.equal(env.trackerUpdates, 1);
 });

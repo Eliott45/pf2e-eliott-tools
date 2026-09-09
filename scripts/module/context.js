@@ -12,6 +12,7 @@
       worldClockEnabled: "worldClockEnabled",
       preciousMaterialArmorEnabled: "preciousMaterialArmorEnabled",
       weaponFamiliarityEnabled: "weaponFamiliarityEnabled",
+      energyResistantRunesEnabled: "energyResistantRunesEnabled",
       frightenedRecoveryEnabled: "frightenedRecoveryEnabled",
       oathOfTheDefenderEnabled: "oathOfTheDefenderEnabled",
       criticalDeckTranslationEnabled: "criticalDeckTranslationEnabled",

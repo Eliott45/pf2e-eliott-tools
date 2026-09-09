@@ -12,6 +12,7 @@
   Hooks.once("init", () => {
     registerSettings();
     weaponFamiliarity.onInit();
+    tools.features.energyResistantRunes?.onInit();
     worldClock.onInit();
 
     if (isSettingEnabled(settings.oathOfTheDefenderEnabled)) {
@@ -29,6 +30,7 @@
     void initializeFrightenedRecovery();
     void initializeBestiary();
     void initializeRegaliaIntensify();
+    void initializeEnergyResistantRunes();
 
     console.log(`${logPrefix} | ready`);
   });
@@ -68,6 +70,29 @@
       return oathOfTheDefender.onRenderChatMessage(...args);
     }
   });
+
+  async function initializeEnergyResistantRunes() {
+    if (tools.features.energyResistantRunes) return;
+    try {
+      // Support a browser reload while the server still caches the old manifest.
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/energy-resistant-runes.js`);
+        script.onload = resolve;
+        script.onerror = () => reject(new Error("Could not load energy-resistant-runes.js"));
+        document.head.append(script);
+      });
+      tools.features.energyResistantRunes.onInit();
+      const actors = new Set([
+        ...game.actors.contents,
+        ...(canvas.tokens?.placeables ?? []).map((token) => token.actor).filter(Boolean),
+      ]);
+      for (const actor of actors) actor.reset();
+    } catch (error) {
+      console.error(`${logPrefix} | Could not initialize Energy-Resistant runes`, error);
+      ui.notifications.error("Не удалось загрузить автоматизацию рун сопротивления энергии. Перезагрузите страницу Foundry.");
+    }
+  }
 
   async function initializeRegaliaIntensify() {
     try {
@@ -171,6 +196,16 @@
       requiresReload: true,
     });
 
+    game.settings.register(moduleId, settings.energyResistantRunesEnabled, {
+      name: "Автоматизировать руны сопротивления энергии",
+      hint: "Руны Energy-Resistant на надетом и инвестированном доспехе дают сопротивление 5, усиленные — 10: кислота, холод, электричество или огонь. После изменения требуется перезагрузка мира в браузере.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true,
+      requiresReload: true,
+    });
+
     game.settings.register(moduleId, settings.preciousMaterialArmorEnabled, {
       name: "Включить эффекты материалов доспеха при критическом промахе",
       hint: "Критический промах безоружной атакой по надетому доспеху из холодного железа, серебра или суверенной стали накладывает тошноту 1 на атакующего с соответствующей уязвимостью. Учитывает иммунитет к тошноте.",
@@ -251,6 +286,11 @@
             scope: "world",
           },
           {
+            key: settings.energyResistantRunesEnabled,
+            name: "Руны сопротивления энергии",
+            scope: "world",
+          },
+          {
             key: settings.frightenedRecoveryEnabled,
             name: "Уменьшение испуга в конце хода",
             scope: "world",
@@ -328,6 +368,7 @@
     hideSettingRowForPlayers(root, settings.worldClockEnabled);
     hideSettingRowForPlayers(root, settings.preciousMaterialArmorEnabled);
     hideSettingRowForPlayers(root, settings.weaponFamiliarityEnabled);
+    hideSettingRowForPlayers(root, settings.energyResistantRunesEnabled);
     hideSettingRowForPlayers(root, settings.frightenedRecoveryEnabled);
 
     for (const group of getSettingsGroups()) {
