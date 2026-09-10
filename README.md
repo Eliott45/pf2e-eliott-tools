@@ -40,8 +40,4 @@ https://github.com/Eliott45/pf2e-eliott-tools/releases/latest/download/module.js
 
 Проверки: `node --test tests/*.test.cjs`.
 
-Сборка компендиума макросов: `node tools/build-macros.cjs <путь-к-classic-level>` при закрытом сервере Foundry.
 
-Для релиза обновите версию в `module.json`, отправьте изменения и тег `vX.Y.Z`. GitHub Actions соберёт архив и опубликует релиз.
-
-Компендиумы сохраняйте согласованным снимком после закрытия мира: нужны `.ldb`, `CURRENT` и `MANIFEST-*`; служебные логи и `LOCK` в Git не добавляются.
