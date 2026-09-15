@@ -31,6 +31,17 @@ jobs:
             exit 1
           fi
 
+      - name: Run tests
+        run: node --test tests/*.test.cjs
+
+      - name: Build macro compendium from source
+        shell: bash
+        run: |
+          npm install --prefix dist/macro-build --no-package-lock --no-audit --no-fund classic-level@3.0.0
+          # Only the CI checkout is changed; the installed Foundry database stays open locally.
+          rm -rf packs/thaumaturge-macros
+          node tools/build-macros.cjs ../dist/macro-build/node_modules/classic-level
+
       - name: Build release archive
         shell: bash
         run: |
@@ -38,11 +49,14 @@ jobs:
           zip -r "dist/pf2e-eliott-tools.zip" \
             module.json \
             README.md \
+            RELEASE_NOTES.md \
+            docs \
             assets \
             data \
             packs \
             scripts \
-            styles
+            styles \
+            -x 'packs/*/LOCK' 'packs/*/LOG' 'packs/*/LOG.old' 'packs/*/*.log'
 
       - name: Copy manifest for release asset
         shell: bash
@@ -55,3 +69,4 @@ jobs:
             dist/module.json
             dist/pf2e-eliott-tools.zip
           generate_release_notes: true
+          body_path: RELEASE_NOTES.md
