@@ -10,7 +10,7 @@ const mainSource = read("scripts/main.js");
 const recoverySource = read("scripts/features/frightened-recovery.js");
 const flush = () => new Promise(setImmediate);
 
-function setup({ loaded = false, bestiaryLoaded = true, runesLoaded = true, controlsVersion = 14 } = {}) {
+function setup({ loaded = false, bestiaryLoaded = true, runesLoaded = true, chaliceLoaded = true, controlsVersion = 14 } = {}) {
   const hooks = new Map();
   const scripts = [];
   const errors = [];
@@ -50,9 +50,11 @@ function setup({ loaded = false, bestiaryLoaded = true, runesLoaded = true, cont
     energyResistantRunes: { onInit: noOp },
     bestiary: { initialize: noOp },
     regaliaIntensify: { initialize: noOp },
+    chalice: { initialize: noOp, updateMacros: noOp },
   };
   if (!bestiaryLoaded) delete context.pf2eEliottTools.features.bestiary;
   if (!runesLoaded) delete context.pf2eEliottTools.features.energyResistantRunes;
+  if (!chaliceLoaded) delete context.pf2eEliottTools.features.chalice;
   if (loaded) vm.runInContext(recoverySource, context);
   vm.runInContext(mainSource, context);
   const emit = (name, ...args) => hooks.get(name)?.forEach((fn) => fn(...args));
@@ -188,4 +190,17 @@ test("rune loader failure is visible and leaves existing combat features working
   assert.match(env.notifications[0], /рун сопротивления энергии/);
   env.emit("updateCombat", {}, { turn: 1 });
   assert.equal(env.trackerUpdates, 1);
+});
+
+test("cached manifest initializes the chalice listener on GM clients before any macro is run", async () => {
+  const env = setup({ loaded: true, chaliceLoaded: false });
+  env.context.game.user = { isGM: false };
+  env.emit("ready");
+  assert.equal(env.scripts.length, 1);
+  assert.match(env.scripts[0].src, /features\/chalice\.js$/);
+  vm.runInContext(read("scripts/features/chalice.js"), env.context);
+  env.scripts[0].onload();
+  await flush();
+  assert.equal(env.hooks.get("createChatMessage").length, 2);
+  assert.deepEqual(env.errors, []);
 });

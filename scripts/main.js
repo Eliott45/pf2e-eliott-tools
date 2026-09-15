@@ -30,6 +30,7 @@
     void initializeFrightenedRecovery();
     void initializeBestiary();
     void initializeRegaliaIntensify();
+    void initializeChalice();
     void initializeEnergyResistantRunes();
 
     console.log(`${logPrefix} | ready`);
@@ -109,6 +110,25 @@
     } catch (error) {
       console.error(`${logPrefix} | Could not initialize regalia`, error);
       ui.notifications.error("Не удалось загрузить регалию. Обновите страницу Foundry.");
+    }
+  }
+
+  async function initializeChalice() {
+    try {
+      if (!tools.features.chalice) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/chalice.js`);
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Could not load chalice.js"));
+          document.head.append(script);
+        });
+      }
+      tools.features.chalice.initialize();
+      await tools.features.chalice.updateMacros();
+    } catch (error) {
+      console.error(`${logPrefix} | Could not initialize chalice`, error);
+      ui.notifications.error("Не удалось загрузить чашу. Обновите страницу Foundry.");
     }
   }
 

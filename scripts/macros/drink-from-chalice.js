@@ -77,9 +77,6 @@ await (async () => {
     if (!choice) return;
     const recipient = recipients.get(choice.recipient);
     if (!recipient || !source.isOwner) return;
-    if (choice.mode === "sip" && !recipient.isOwner) {
-      return ui.notifications.warn(`Нет прав изменять ${recipient.name}. Владелец или мастер может запустить макрос, выбрав тауматурга и эту цель.`);
-    }
     const amount = values(choice.adept, choice.intensified);
     const effects = () => source.itemTypes.effect.filter((e) =>
       e.slug === "chalice-drained" || e.flags?.[moduleId]?.chalice?.kind === "drained");
@@ -106,31 +103,18 @@ await (async () => {
       },
     });
     if (choice.mode === "sip") {
-      const currentHP = Number(recipient.system.attributes.hp.temp) || 0;
-      const currentSource = recipient.system.attributes.hp.tempsource;
-      const previous = recipient.itemTypes.effect.filter((e) =>
-        e.flags?.[moduleId]?.chalice?.kind === "sip" &&
-        e.flags[moduleId].chalice.origin === source.uuid);
-      const ownsCurrentHP = previous.some((e) => e.id === currentSource);
-      // Keep a stronger source and its original expiry; temporary HP never stack.
-      if (currentHP < amount.sip || (currentHP === amount.sip && ownsCurrentHP)) {
-        const [effect] = await recipient.createEmbeddedDocuments("Item", [effectData("sip",
-          `Чаша: ${amount.sip} временных ОЗ`, { value: 1, unit: "rounds", expiry: "turn-end" },
-          [{ key: "TempHP", value: amount.sip }])]);
-        if (!effect) throw new Error("PF2e не создала эффект чаши.");
-        // PF2e only adopts a TempHP source when the new value is strictly higher.
-        // On an equal refresh, move ownership before removing our previous effect.
-        if (currentHP === amount.sip && ownsCurrentHP) {
-          await recipient.update({ "system.attributes.hp.tempsource": effect.id });
-        }
-        if (previous.length) await recipient.deleteEmbeddedDocuments("Item", previous.map((e) => e.id));
-      } else {
-        ui.notifications.info(`${recipient.name}: сохранены текущие ${currentHP} временных ОЗ; глоток даёт ${amount.sip}.`);
+      const tools = globalThis.pf2eEliottTools;
+      if (!tools) return ui.notifications.warn("Включите модуль PF2E Eliott Tools.");
+      if (!tools.features?.chalice) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/chalice.js`);
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Не удалось загрузить макрос чаши."));
+          document.head.append(script);
+        });
       }
-      for (const effect of activeDrained) {
-        await effect.update({ "system.start": { value: game.time.worldTime,
-          initiative: source.combatant?.initiative ?? null } });
-      }
+      await tools.features.chalice.sip(source, recipient, choice, origin.token);
     } else {
       const DamageRoll = CONFIG.Dice.rolls.find((roll) => roll.name === "DamageRoll");
       if (!DamageRoll) throw new Error("Не найден бросок урона/лечения PF2e.");
