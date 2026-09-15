@@ -13,6 +13,7 @@
     registerSettings();
     weaponFamiliarity.onInit();
     tools.features.energyResistantRunes?.onInit();
+    tools.features.mythicMagic?.onInit();
     worldClock.onInit();
 
     if (isSettingEnabled(settings.oathOfTheDefenderEnabled)) {
@@ -188,6 +189,15 @@
   }
 
   function registerSettings() {
+    game.settings.register(moduleId, settings.mythicMagicEnabled, {
+      name: "Мифическая магия в листе персонажа",
+      hint: "Добавляет режим для черты Mythic Magic: один автоматически повышаемый ранг заклинаний, мифическое владение и расход мифических пунктов. Требуются Foundry 14 и PF2e 8. После изменения перезагрузите страницу.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true,
+      requiresReload: true,
+    });
     game.keybindings.register(moduleId, "bestiary", {
       name: "Открыть бестиарий группы",
       hint: "Открывает журнал встреченных существ. Игроки и мастер могут назначить своё сочетание клавиш; по умолчанию Shift+B.",
@@ -347,6 +357,11 @@
       {
         title: "Автоматизация заклинаний",
         settings: [
+          {
+            key: settings.mythicMagicEnabled,
+            name: "Мифическая магия",
+            scope: "world",
+          },
           {
             key: settings.oathOfTheDefenderEnabled,
             name: "Фикс Oath of the Defender",
