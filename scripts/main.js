@@ -13,10 +13,7 @@
     registerSettings();
     weaponFamiliarity.onInit();
     tools.features.energyResistantRunes?.onInit();
-    tools.features.barrowsEdge?.onInit();
-    tools.features.drinkOfMyFoes?.onInit();
     tools.features.mythicMagic?.onInit();
-    tools.features.weaponRuneCompatibility?.onInit();
     worldClock.onInit();
 
     if (isSettingEnabled(settings.oathOfTheDefenderEnabled)) {
@@ -172,29 +169,6 @@
   }
 
   function registerSettings() {
-    game.settings.register(moduleId, settings.drinkOfMyFoesEnabled, {
-      name: "Drink of my Foes: лечение и перенос искры",
-      hint: "Добавляет кнопку к броску урона Barrow's Edge. Подключённый мастер рассчитывает половину фактически нанесённого урона, применяет лечение и перемещает искру в выбранный икон. Требуется обновление клиентов мастера и игрока.",
-      scope: "world", config: true, type: Boolean, default: true, requiresReload: true,
-    });
-    game.settings.register(moduleId, settings.barrowsEdgeEnabled, {
-      name: "Barrow's Edge: урон по ОЗ цели",
-      hint: "Автоматически усиливает духовный урон выбранного оружия, если у цели броска меньше половины максимальных ОЗ. Без цели или её ОЗ используется штатный ручной переключатель.",
-      scope: "world",
-      config: true,
-      type: Boolean,
-      default: true,
-      requiresReload: true,
-    });
-    game.settings.register(moduleId, settings.weaponRuneCompatibilityEnabled, {
-      name: "Защита листа от неизвестных рун оружия",
-      hint: "Если PF2e не узнаёт руну импортированного оружия, сохраняет её в предмете, временно исключает из расчёта атаки и предупреждает владельца. Остальные атаки и заклинания продолжают рассчитываться.",
-      scope: "world",
-      config: true,
-      type: Boolean,
-      default: true,
-      requiresReload: true,
-    });
     game.settings.register(moduleId, settings.mythicMagicEnabled, {
       name: "Мифическая магия в листе персонажа",
       hint: "Добавляет режим для черты Mythic Magic: один автоматически повышаемый ранг заклинаний, мифическое владение и расход мифических пунктов. Требуются Foundry 14 и PF2e 8. После изменения перезагрузите страницу.",
@@ -311,21 +285,6 @@
       {
         title: "Автоматизация листа персонажа",
         settings: [
-          {
-            key: settings.drinkOfMyFoesEnabled,
-            name: "Drink of my Foes: лечение и перенос искры",
-            scope: "world",
-          },
-          {
-            key: settings.barrowsEdgeEnabled,
-            name: "Barrow's Edge: урон по ОЗ цели",
-            scope: "world",
-          },
-          {
-            key: settings.weaponRuneCompatibilityEnabled,
-            name: "Защита от неизвестных рун оружия",
-            scope: "world",
-          },
           {
             key: settings.weaponFamiliarityEnabled,
             name: "Фикс Weapon Familiarity",

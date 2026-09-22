@@ -16,7 +16,6 @@
       barrowsEdgeEnabled: "barrowsEdgeEnabled",
       drinkOfMyFoesEnabled: "drinkOfMyFoesEnabled",
       mythicMagicEnabled: "mythicMagicEnabled",
-      weaponRuneCompatibilityEnabled: "weaponRuneCompatibilityEnabled",
       frightenedRecoveryEnabled: "frightenedRecoveryEnabled",
       oathOfTheDefenderEnabled: "oathOfTheDefenderEnabled",
       criticalDeckTranslationEnabled: "criticalDeckTranslationEnabled",

@@ -35,7 +35,6 @@
     "scripts/features/barrows-edge.js",
     "scripts/features/drink-of-my-foes.js",
     "scripts/features/mythic-magic.js",
-    "scripts/features/weapon-rune-compatibility.js",
     "scripts/features/frightened-recovery.js",
     "scripts/features/regalia-intensify.js",
     "scripts/features/champion/oath-of-the-defender.js",
