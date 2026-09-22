@@ -1,0 +1,42 @@
+{
+  "source": "https://github.com/foundryvtt/pf2e/blob/pf2e-8.5.0/packs/pf2e/class-features/barrows-edge.json",
+  "rules": [
+    {
+      "damageType": "spirit",
+      "key": "FlatModifier",
+      "predicate": [
+        "item:tag:physical-ikon:barrows-edge",
+        "divine-spark:barrows-edge"
+      ],
+      "selector": "weapon-damage",
+      "slug": "barrows-edge-immanence",
+      "tags": [
+        "exemplar"
+      ],
+      "value": "@weapon.system.damage.dice"
+    },
+    {
+      "disabledIf": [
+        {
+          "not": "divine-spark:barrows-edge"
+        }
+      ],
+      "disabledValue": false,
+      "key": "RollOption",
+      "label": "PF2E.SpecificRule.Exemplar.Ikon.BarrowsEdge.RollOptionLabel",
+      "option": "barrows-edge:target-below-half",
+      "priority": 51,
+      "toggleable": true
+    },
+    {
+      "key": "AdjustModifier",
+      "mode": "multiply",
+      "predicate": [
+        "barrows-edge:target-below-half"
+      ],
+      "selector": "weapon-damage",
+      "slug": "barrows-edge-immanence",
+      "value": 3
+    }
+  ]
+}

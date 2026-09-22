@@ -13,6 +13,8 @@
       preciousMaterialArmorEnabled: "preciousMaterialArmorEnabled",
       weaponFamiliarityEnabled: "weaponFamiliarityEnabled",
       energyResistantRunesEnabled: "energyResistantRunesEnabled",
+      barrowsEdgeEnabled: "barrowsEdgeEnabled",
+      drinkOfMyFoesEnabled: "drinkOfMyFoesEnabled",
       mythicMagicEnabled: "mythicMagicEnabled",
       weaponRuneCompatibilityEnabled: "weaponRuneCompatibilityEnabled",
       frightenedRecoveryEnabled: "frightenedRecoveryEnabled",
