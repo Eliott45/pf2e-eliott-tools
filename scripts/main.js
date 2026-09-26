@@ -8,11 +8,16 @@
   const worldClock = tools.features.worldClock;
   const preciousMaterialArmor = tools.features.preciousMaterialArmor;
   const weaponFamiliarity = tools.features.weaponFamiliarity;
+  const ruleFeatures = [
+    { key: "energyResistantRunes", file: "energy-resistant-runes", label: "рун сопротивления энергии", resetActors: true },
+    { key: "barrowsEdge", file: "barrows-edge", label: "Barrow's Edge", resetActors: true },
+    { key: "drinkOfMyFoes", file: "drink-of-my-foes", label: "Drink of my Foes" },
+  ];
 
   Hooks.once("init", () => {
     registerSettings();
     weaponFamiliarity.onInit();
-    tools.features.energyResistantRunes?.onInit();
+    for (const feature of ruleFeatures) tools.features[feature.key]?.onInit();
     tools.features.mythicMagic?.onInit();
     worldClock.onInit();
 
@@ -32,7 +37,7 @@
     void initializeBestiary();
     void initializeRegaliaIntensify();
     void initializeChalice();
-    void initializeEnergyResistantRunes();
+    void initializeRuleFeatures();
 
     console.log(`${logPrefix} | ready`);
   });
@@ -73,26 +78,30 @@
     }
   });
 
-  async function initializeEnergyResistantRunes() {
-    if (tools.features.energyResistantRunes) return;
-    try {
-      // Support a browser reload while the server still caches the old manifest.
-      await new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/energy-resistant-runes.js`);
-        script.onload = resolve;
-        script.onerror = () => reject(new Error("Could not load energy-resistant-runes.js"));
-        document.head.append(script);
-      });
-      tools.features.energyResistantRunes.onInit();
-      const actors = new Set([
-        ...game.actors.contents,
-        ...(canvas.tokens?.placeables ?? []).map((token) => token.actor).filter(Boolean),
-      ]);
-      for (const actor of actors) actor.reset();
-    } catch (error) {
-      console.error(`${logPrefix} | Could not initialize Energy-Resistant runes`, error);
-      ui.notifications.error("Не удалось загрузить автоматизацию рун сопротивления энергии. Перезагрузите страницу Foundry.");
+  async function initializeRuleFeatures() {
+    for (const feature of ruleFeatures) {
+      if (tools.features[feature.key]) continue;
+      try {
+        // Support a browser reload while the server still caches the old manifest.
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/${feature.file}.js`);
+          script.onload = resolve;
+          script.onerror = () => reject(new Error(`Could not load ${feature.file}.js`));
+          document.head.append(script);
+        });
+        tools.features[feature.key].onInit();
+        if (feature.resetActors) {
+          const actors = new Set([
+            ...game.actors.contents,
+            ...(canvas.tokens?.placeables ?? []).map((token) => token.actor).filter(Boolean),
+          ]);
+          for (const actor of actors) actor.reset();
+        }
+      } catch (error) {
+        console.error(`${logPrefix} | Could not initialize ${feature.file}`, error);
+        ui.notifications.error(`Не удалось загрузить автоматизацию: ${feature.label}. Перезагрузите страницу Foundry.`);
+      }
     }
   }
 
@@ -236,6 +245,26 @@
       requiresReload: true,
     });
 
+    game.settings.register(moduleId, settings.barrowsEdgeEnabled, {
+      name: "Автоматизировать Barrow's Edge",
+      hint: "Автоматически усиливает бонусный урон духом, если у цели меньше половины максимальных ОЗ. Без подходящей цели сохраняет ручной переключатель PF2e. После изменения требуется перезагрузка страницы.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true,
+      requiresReload: true,
+    });
+
+    game.settings.register(moduleId, settings.drinkOfMyFoesEnabled, {
+      name: "Автоматизировать Drink of my Foes",
+      hint: "Добавляет к урону Barrow's Edge кнопку лечения и переноса искры. Мастер должен быть подключён и сначала применить урон к цели. Расход действия и незаписанные действия контролируются вручную. После изменения требуется перезагрузка страницы.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true,
+      requiresReload: true,
+    });
+
     game.settings.register(moduleId, settings.preciousMaterialArmorEnabled, {
       name: "Включить эффекты материалов доспеха при критическом промахе",
       hint: "Критический промах безоружной атакой по надетому доспеху из холодного железа, серебра или суверенной стали накладывает тошноту 1 на атакующего с соответствующей уязвимостью. Учитывает иммунитет к тошноте.",
@@ -328,6 +357,13 @@
         ],
       },
       {
+        title: "Exemplar — Barrow's Edge",
+        settings: [
+          { key: settings.barrowsEdgeEnabled, name: "Barrow's Edge", scope: "world" },
+          { key: settings.drinkOfMyFoesEnabled, name: "Drink of my Foes", scope: "world" },
+        ],
+      },
+      {
         title: "Время мира",
         settings: [
           {
@@ -404,6 +440,8 @@
     hideSettingRowForPlayers(root, settings.preciousMaterialArmorEnabled);
     hideSettingRowForPlayers(root, settings.weaponFamiliarityEnabled);
     hideSettingRowForPlayers(root, settings.energyResistantRunesEnabled);
+    hideSettingRowForPlayers(root, settings.barrowsEdgeEnabled);
+    hideSettingRowForPlayers(root, settings.drinkOfMyFoesEnabled);
     hideSettingRowForPlayers(root, settings.frightenedRecoveryEnabled);
 
     for (const group of getSettingsGroups()) {

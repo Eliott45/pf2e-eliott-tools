@@ -143,6 +143,7 @@ function setup({ enabled = true, singleIkon = false } = {}) {
   const weapon = { type: "weapon", uuid: "Actor.hero.Item.weapon", actor: hero,
     system: { traits: { otherTags: ["physical-ikon:barrows-edge"] } } };
   hero.items.push(action, weapon); items.set(action.uuid, action); items.set(weapon.uuid, weapon);
+  if (singleIkon) hero.items.push({ type: "feat", slug: "exemplar-dedication" });
   async function roll({ outcome = "success", owner = player, sourceType = "attack" } = {}) {
     game.user = owner;
     return ChatMessage.create({ speaker: { actor: hero.id }, flags: { pf2e: { origin: { uuid: weapon.uuid },
@@ -359,4 +360,112 @@ test("disabled automation and repeated initialization preserve native behavior",
   env.setEnabled(true);
   const enabledRoll = await env.roll(); await env.apply(enabledRoll); await env.request(enabledRoll);
   assert.equal(env.hero.healCalls.length, 1);
+});
+
+test("saving throws, flat checks and declaring Drink of my Foes do not invalidate the Strike", async () => {
+  for (const later of [
+    { isCheckRoll: true, flags: { pf2e: { context: { type: "saving-throw" } } } },
+    { isCheckRoll: true, flags: { pf2e: { context: { type: "flat-check" } } } },
+    { item: { type: "action", slug: "drink-of-my-foes", system: { actionType: { value: "action" } } } },
+  ]) {
+    const env = setup(); const source = await env.roll(); await env.apply(source);
+    env.messages.push({ id: "later", timestamp: source.timestamp + 1, actor: env.hero, ...later });
+    assert.equal(meta(await env.request(source), "drinkFoesRequest").status, "applied");
+  }
+});
+
+test("subsequent attacks, skill checks and action cards block an older Strike", async () => {
+  for (const later of [
+    { isCheckRoll: true, flags: { pf2e: { context: { type: "attack-roll" } } } },
+    { isCheckRoll: true, flags: { pf2e: { context: { type: "skill-check" } } } },
+    { item: { type: "action", slug: "stride", system: { actionType: { value: "action" } } } },
+  ]) {
+    const env = setup(); const source = await env.roll(); await env.apply(source);
+    env.messages.push({ id: "later", timestamp: source.timestamp + 1, actor: env.hero, ...later });
+    assert.equal(meta(await env.request(source), "drinkFoesRequest").status, "error");
+    assert.equal(env.hero.healCalls.length, 0);
+  }
+});
+
+test("deleting a used damage receipt and applying damage again cannot heal from the same Strike", async () => {
+  const env = setup(); const source = await env.roll(); const record = await env.apply(source);
+  await env.request(source);
+  assert.equal(meta(source, "drinkFoesRoll").state, "used");
+  env.messages.splice(env.messages.indexOf(record), 1);
+  env.hero.rollOptions.all[spark] = true;
+  await env.apply(source);
+  assert.equal(meta(await env.request(source), "drinkFoesRequest").status, "error");
+  assert.equal(env.hero.healCalls.length, 1);
+  assert.equal(env.render(source).disabled, true);
+});
+
+test("source claim prevents retries even if the damage receipt update fails", async () => {
+  const env = setup(); const source = await env.roll(); const record = await env.apply(source);
+  const update = record.update;
+  record.update = async () => { throw new Error("receipt update failed"); };
+  assert.equal(meta(await env.request(source), "drinkFoesRequest").status, "error");
+  assert.equal(meta(source, "drinkFoesRoll").state, "claimed");
+  record.update = update;
+  assert.equal(meta(await env.request(source), "drinkFoesRequest").status, "error");
+  assert.equal(env.hero.healCalls.length, 0);
+  assert.equal(env.hero.shifts.length, 0);
+});
+
+test("damage must be applied to the recorded actor and token, when the roll has a target", async () => {
+  for (const target of [
+    { actor: "Actor.other", token: "Scene.scene.Token.other" },
+    { actor: "Actor.enemy", token: "Scene.scene.Token.other" },
+    { actor: "Actor.enemy", token: "Scene.scene.Token.enemy" },
+  ]) {
+    const env = setup(); const source = await env.roll();
+    source.flags.pf2e.context.target = target;
+    await env.apply(source);
+    const correct = target.token === env.enemy.token.uuid;
+    assert.equal(meta(await env.request(source), "drinkFoesRequest").status, correct ? "applied" : "error");
+    assert.equal(env.hero.healCalls.length, correct ? 1 : 0);
+  }
+});
+
+test("a receipt from another turn cannot be used by returning the tracker to the roll's turn", async () => {
+  const env = setup(); const source = await env.roll();
+  env.game.combat.turn = 1; await env.apply(source); env.game.combat.turn = 0;
+  assert.equal(meta(await env.request(source), "drinkFoesRequest").status, "error");
+  assert.equal(env.hero.healCalls.length, 0);
+});
+
+test("only Exemplar Dedication can return a single ikon's spark to the soul", async () => {
+  const env = setup({ singleIkon: true });
+  env.hero.items = env.hero.items.filter((item) => item.slug !== "exemplar-dedication");
+  const source = await env.roll(); await env.apply(source);
+  assert.equal(meta(await env.request(source), "drinkFoesRequest").status, "error");
+  assert.equal(env.hero.healCalls.length, 0);
+});
+
+test("translated dedication uses the source UUID, and unavailable spark toggles reject requests", async () => {
+  const env = setup({ singleIkon: true });
+  const dedication = env.hero.items.find((item) => item.slug === "exemplar-dedication");
+  dedication.slug = "translated"; dedication.sourceId = "Compendium.pf2e.feats-srd.Item.qvWmW5JWpVBDyGqe";
+  const source = await env.roll(); await env.apply(source);
+  const toggle = env.hero.synthetics.toggles.all["divine-spark"];
+  toggle.enabled = false;
+  assert.equal(meta(await env.request(source), "drinkFoesRequest").status, "error");
+  toggle.enabled = true;
+  assert.equal(meta(await env.request(source), "drinkFoesRequest").status, "applied");
+});
+
+test("native zero-damage receipts without appliedDamage can still complete transcendence", async () => {
+  const env = setup(); const source = await env.roll(); const record = await env.apply(source, 0);
+  record.flags.pf2e.appliedDamage = null;
+  assert.equal(meta(await env.request(source), "drinkFoesRequest").status, "applied");
+  assert.equal(env.hero.healCalls.length, 0);
+  assert.equal(env.hero.shifts.length, 1);
+});
+
+test("a failed damage operation releases its queue so the next application can be tracked", async () => {
+  const env = setup(); const source = await env.roll(); env.enemy.failDamage = true;
+  await assert.rejects(env.apply(source), /damage failed/);
+  env.enemy.failDamage = false;
+  await env.apply(source, 20);
+  assert.equal(meta(await env.request(source), "drinkFoesRequest").status, "applied");
+  assert.equal(env.hero.healCalls[0].damage, -10);
 });

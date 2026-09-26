@@ -10,7 +10,8 @@ const mainSource = read("scripts/main.js");
 const recoverySource = read("scripts/features/frightened-recovery.js");
 const flush = () => new Promise(setImmediate);
 
-function setup({ loaded = false, bestiaryLoaded = true, runesLoaded = true, chaliceLoaded = true, controlsVersion = 14 } = {}) {
+function setup({ loaded = false, bestiaryLoaded = true, runesLoaded = true, chaliceLoaded = true,
+  barrowsLoaded = true, drinkLoaded = true, controlsVersion = 14 } = {}) {
   const hooks = new Map();
   const scripts = [];
   const errors = [];
@@ -18,6 +19,7 @@ function setup({ loaded = false, bestiaryLoaded = true, runesLoaded = true, chal
   const settings = new Map();
   const menus = new Map();
   const keybindings = new Map();
+  const initialized = [];
   class ControlsEditor {}
   let trackerUpdates = 0;
   const register = (name, fn) => {
@@ -29,7 +31,11 @@ function setup({ loaded = false, bestiaryLoaded = true, runesLoaded = true, chal
     Hooks: { on: register, once: register },
     game: { keybindings: { register: (_id, key, value) => keybindings.set(key, value) }, settings: {
       register: (_id, key, value) => settings.set(key, value),
-      registerMenu: (_id, key, value) => menus.set(key, value), get: () => true,
+      registerMenu: (_id, key, value) => menus.set(key, value),
+      get: (_id, key) => {
+        assert.ok(settings.has(key), `Setting ${key} must be registered before use`);
+        return settings.get(key).default;
+      },
     } },
     document: { querySelector: () => ({}), createElement: (name) => ({ tagName: name }), head: { append: (script) => scripts.push(script) } },
     foundry: { utils: { getRoute: (path) => `/foundry/${path}` }, applications: controlsVersion === 14
@@ -48,6 +54,8 @@ function setup({ loaded = false, bestiaryLoaded = true, runesLoaded = true, chal
     worldClock: { onInit: noOp, onReady: noOp }, preciousMaterialArmor: {},
     weaponFamiliarity: { onInit: noOp },
     energyResistantRunes: { onInit: noOp },
+    barrowsEdge: { onInit: () => { context.game.settings.get("pf2e-eliott-tools", "barrowsEdgeEnabled"); initialized.push("barrowsEdge"); } },
+    drinkOfMyFoes: { onInit: () => { context.game.settings.get("pf2e-eliott-tools", "drinkOfMyFoesEnabled"); initialized.push("drinkOfMyFoes"); } },
     bestiary: { initialize: noOp },
     regaliaIntensify: { initialize: noOp },
     chalice: { initialize: noOp, updateMacros: noOp },
@@ -55,10 +63,12 @@ function setup({ loaded = false, bestiaryLoaded = true, runesLoaded = true, chal
   if (!bestiaryLoaded) delete context.pf2eEliottTools.features.bestiary;
   if (!runesLoaded) delete context.pf2eEliottTools.features.energyResistantRunes;
   if (!chaliceLoaded) delete context.pf2eEliottTools.features.chalice;
+  if (!barrowsLoaded) delete context.pf2eEliottTools.features.barrowsEdge;
+  if (!drinkLoaded) delete context.pf2eEliottTools.features.drinkOfMyFoes;
   if (loaded) vm.runInContext(recoverySource, context);
   vm.runInContext(mainSource, context);
   const emit = (name, ...args) => hooks.get(name)?.forEach((fn) => fn(...args));
-  return { context, hooks, scripts, errors, notifications, settings, menus, keybindings, ControlsEditor, emit,
+  return { context, hooks, scripts, errors, notifications, settings, menus, keybindings, initialized, ControlsEditor, emit,
     load: () => vm.runInContext(recoverySource, context),
     get trackerUpdates() { return trackerUpdates; } };
 }
@@ -83,6 +93,51 @@ test("cached manifest: new settings appear and recovery script is loaded before 
   assert.deepEqual(calls, [["combatant", "encounter"]]);
   assert.equal(env.hooks.get("pf2e.endTurn").length, 1);
   assert.deepEqual(env.errors, []);
+});
+
+test("Foundry init registers and starts both Exemplar features; ready does not install them twice", async () => {
+  const env = setup({ loaded: true });
+  env.emit("init");
+  for (const key of ["barrowsEdgeEnabled", "drinkOfMyFoesEnabled"]) {
+    assert.equal(env.settings.get(key).default, true);
+    assert.equal(env.settings.get(key).scope, "world");
+    assert.equal(env.settings.get(key).requiresReload, true);
+  }
+  assert.deepEqual(env.initialized, ["barrowsEdge", "drinkOfMyFoes"]);
+  env.emit("ready");
+  await flush();
+  assert.deepEqual(env.initialized, ["barrowsEdge", "drinkOfMyFoes"]);
+  assert.equal(env.scripts.length, 0);
+});
+
+test("cached manifest loads both Exemplar features and recalculates Barrow's Edge actors", async () => {
+  const env = setup({ loaded: true, barrowsLoaded: false, drinkLoaded: false });
+  const calls = [];
+  const actor = { reset: () => calls.push("world") };
+  env.context.game.actors = { contents: [actor] };
+  env.context.canvas = { tokens: { placeables: [{ actor }] } };
+  env.emit("init"); env.emit("ready");
+  for (const [index, key, file] of [[0, "barrowsEdge", "barrows-edge"], [1, "drinkOfMyFoes", "drink-of-my-foes"]]) {
+    assert.match(env.scripts[index].src, new RegExp(`${file}\\.js$`));
+    env.context.pf2eEliottTools.features[key] = { onInit: () => calls.push(key) };
+    env.scripts[index].onload();
+    await flush();
+  }
+  assert.deepEqual(calls, ["barrowsEdge", "world", "drinkOfMyFoes"]);
+  assert.deepEqual(env.errors, []);
+});
+
+test("failed Barrow's Edge loading does not prevent Drink of my Foes or combat hooks", async () => {
+  const env = setup({ loaded: true, barrowsLoaded: false, drinkLoaded: false });
+  env.emit("init"); env.emit("ready");
+  env.scripts[0].onerror(); await flush();
+  assert.match(env.scripts[1].src, /drink-of-my-foes\.js$/);
+  env.context.pf2eEliottTools.features.drinkOfMyFoes = { onInit: () => env.initialized.push("drinkOfMyFoes") };
+  env.scripts[1].onload(); await flush();
+  assert.deepEqual(env.initialized, ["drinkOfMyFoes"]);
+  assert.equal(env.errors.length, 1);
+  env.emit("updateCombat", {}, { turn: 1 });
+  assert.equal(env.trackerUpdates, 1);
 });
 
 test("bestiary binding and native controls editor are available to players and GMs across supported versions", () => {

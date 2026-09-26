@@ -15,19 +15,30 @@
   const processed = new WeakSet();
   let installed = false;
   const enabled = () => game.settings.get(moduleId, settings.drinkOfMyFoesEnabled) !== false;
-  const metadata = (message, key) => message.flags?.[moduleId]?.[key];
+  const metadata = (message, key) => message?.flags?.[moduleId]?.[key];
   const escape = (text) => foundry.utils.escapeHTML(String(text));
   const currentCombat = () => game.combat?.started
     ? { id: game.combat.id, round: game.combat.round, turn: game.combat.turn } : null;
   const isWeapon = (item) => item?.type === "weapon"
     && item.system.traits?.otherTags?.includes("physical-ikon:barrows-edge");
-  const getAction = (actor) => actor.items.find((item) => item.type === "action"
+  const getAction = (actor) => actor?.items.find((item) => item.type === "action"
     && (item.slug === "drink-of-my-foes" || item.sourceId === "Compendium.pf2e.actionspf2e.Item.vZwa0PZLQvm3X5ME"));
   const isSuccessfulDamage = (message) => message.flags?.pf2e?.context?.type === "damage-roll"
     && message.flags.pf2e.context.sourceType === "attack"
     && ["success", "criticalSuccess"].includes(message.flags.pf2e.context.outcome)
     && isWeapon(message.item);
   const getKey = (options, prefix) => Array.from(options ?? []).find((option) => option.startsWith(prefix))?.slice(prefix.length);
+
+  // Both maps serialize operations by their owner and release settled tasks,
+  // including rejected tasks, without leaving an unhandled finally() promise.
+  function enqueue(queue, key, operation) {
+    const previous = queue.get(key) ?? Promise.resolve();
+    const task = previous.catch(() => {}).then(operation);
+    queue.set(key, task);
+    const release = () => { if (queue.get(key) === task) queue.delete(key); };
+    void task.then(release, release);
+    return task;
+  }
 
   function onInit() {
     if (installed) return;
@@ -37,6 +48,15 @@
       console.warn(`${logPrefix} | Drink of my Foes is unavailable in this PF2e version`);
       return;
     }
+    installDamageTracking(prototype);
+    Hooks.on("preCreateChatMessage", prepareMessage);
+    Hooks.on("createChatMessage", (message) => { void onRequest(message).catch(reportError); });
+    Hooks.on("renderChatMessageHTML", renderMessage);
+    Hooks.on("renderChatMessage", renderMessage);
+    installed = true;
+  }
+
+  function installDamageTracking(prototype) {
     const calculate = prototype.calculateHealthDelta;
     prototype.calculateHealthDelta = function (...args) {
       const result = calculate.apply(this, args);
@@ -51,15 +71,14 @@
       if (!enabled()) return apply.call(this, params, ...args);
       // Serialize calls on the same document so the per-call observation cannot
       // be confused with another damage/healing operation on that instance.
-      const previous = damageQueues.get(this) ?? Promise.resolve();
-      const task = previous.catch(() => {}).then(async () => {
+      return enqueue(damageQueues, this, async () => {
         const rollKey = getKey(params.rollOptions, rollPrefix);
         const track = game.user.isGM && rollKey && isWeapon(params.item)
           && ["success", "criticalSuccess"].includes(params.outcome);
         if (!track) return apply.call(this, params, ...args);
         const trace = foundry.utils.randomID();
         const frame = { rollKey, actor: params.item.actor.uuid, weapon: params.item.uuid,
-          target: this.uuid, damage: null, combat: currentCombat() };
+          target: this.uuid, token: params.token?.uuid, damage: null, combat: currentCombat() };
         frames.set(trace, frame);
         actorFrames.set(this, frame);
         try {
@@ -71,15 +90,7 @@
           actorFrames.delete(this);
         }
       });
-      damageQueues.set(this, task);
-      void task.finally(() => { if (damageQueues.get(this) === task) damageQueues.delete(this); }).catch(() => {});
-      return task;
     };
-    Hooks.on("preCreateChatMessage", prepareMessage);
-    Hooks.on("createChatMessage", (message) => { void onRequest(message); });
-    Hooks.on("renderChatMessageHTML", renderMessage);
-    Hooks.on("renderChatMessage", renderMessage);
-    installed = true;
   }
 
   function prepareMessage(message) {
@@ -87,7 +98,7 @@
     const context = message.flags?.pf2e?.context;
     if (isSuccessfulDamage(message) && getAction(message.actor)) {
       const key = foundry.utils.randomID();
-      message.updateSource({ [`flags.${moduleId}.${rollFlag}`]: { key, combat: currentCombat() },
+      message.updateSource({ [`flags.${moduleId}.${rollFlag}`]: { key, combat: currentCombat(), state: "available" },
         "flags.pf2e.context.options": [...(context.options ?? []).filter((option) => !option.startsWith(rollPrefix)), `${rollPrefix}${key}`] });
     } else if (game.user.isGM && context?.type === "damage-taken") {
       const frame = frames.get(getKey(context.options, applyPrefix));
@@ -100,10 +111,13 @@
     const toggle = actor.synthetics?.toggles?.all?.["divine-spark"];
     if (!toggle?.enabled) return [];
     const options = toggle.suboptions ?? [];
+    // PF2e has already evaluated suboption predicates, including parent options.
     const others = options.filter((option) => option.value !== "barrows-edge")
       .map((option) => ({ value: option.value, label: game.i18n.localize(option.label) }));
     // Exemplar Dedication with only one ikon sends the spark back into the soul.
-    return others.length ? others : options.some((option) => option.value === "barrows-edge")
+    const dedication = actor.items.some((item) => item.type === "feat" && (item.slug === "exemplar-dedication"
+      || item.sourceId === "Compendium.pf2e.feats-srd.Item.qvWmW5JWpVBDyGqe"));
+    return others.length ? others : dedication && options.some((option) => option.value === "barrows-edge")
       ? [{ value: "", label: "Вернуть искру в душу" }] : [];
   }
 
@@ -116,6 +130,7 @@
     button.type = "button";
     button.className = "eliott-drink-foes";
     button.textContent = "◆ Drink of my Foes";
+    button.disabled = isClaimed(message);
     button.title = "Восстановить половину фактически нанесённого урона и переместить искру";
     button.addEventListener("click", (event) => {
       event.preventDefault();
@@ -128,6 +143,7 @@
   async function open(message) {
     const actor = message.actor;
     if (!enabled() || !actor?.isOwner || dialogs.has(actor.uuid)) return;
+    if (isClaimed(message)) return ui.notifications.warn("Этот Удар уже использован или требует проверки мастера.");
     const gm = game.users.activeGM;
     if (!gm) return ui.notifications.warn("Для расчёта Drink of my Foes нужен подключённый мастер.");
     if (!actor.rollOptions.all[sparkOption]) return ui.notifications.warn("Божественная искра должна находиться в Barrow's Edge.");
@@ -157,10 +173,11 @@
 
   function validateAction(source, user) {
     const actor = source?.actor;
-    const roll = metadata(source ?? {}, rollFlag);
+    const roll = metadata(source, rollFlag);
     if (!actor || !actor.testUserPermission(user, "OWNER") || !roll || !isSuccessfulDamage(source)) {
       throw new Error("Нет подходящего броска урона Barrow's Edge или прав на персонажа.");
     }
+    if (isClaimed(source)) throw new Error("Этот Удар уже использован или его обработка требует проверки мастера.");
     const action = getAction(actor);
     if (!action || !actor.rollOptions.all[sparkOption]) throw new Error("Нужны Drink of my Foes и активная искра в Barrow's Edge.");
     if (actor.system.attributes.hp.negativeHealing || actor.modeOfBeing === "undead") {
@@ -170,20 +187,29 @@
     if (JSON.stringify(roll.combat) !== JSON.stringify(currentCombat())) throw new Error("Ход изменился; этот Удар больше нельзя использовать.");
     // Detect actions that Foundry actually logged. Unlogged movement/actions still
     // require the player to honor the last-action requirement shown in the dialog.
-    const laterAction = game.messages.contents.some((m) => m.timestamp > source.timestamp
-      && m.actor?.uuid === actor.uuid && !metadata(m, requestFlag)
-      && (m.isCheckRoll || m.flags?.pf2e?.context?.type === "spell-cast"
-        || (["action", "feat"].includes(m.item?.type) && m.item?.system.actionType?.value === "action"
-          && m.flags?.pf2e?.context?.type !== "damage-taken")));
+    const laterAction = game.messages.contents.some((message) => message.timestamp > source.timestamp
+      && message.actor?.uuid === actor.uuid && isActionMessage(message));
     if (laterAction) throw new Error("После этого Удара уже записано другое действие персонажа.");
     return { actor, action, roll };
   }
 
-  async function use(request, user) {
-    const source = game.messages.get(request.source);
-    const { actor, action, roll } = validateAction(source, user);
-    const choice = sparkChoices(actor).find((option) => option.value === request.ikon);
-    if (!choice) throw new Error("Выбранный икон недоступен для перемещения искры.");
+  function isClaimed(source) {
+    const state = metadata(source, rollFlag)?.state;
+    return !!state && state !== "available";
+  }
+
+  function isActionMessage(message) {
+    if (metadata(message, requestFlag)) return false;
+    const type = message.flags?.pf2e?.context?.type;
+    if (["damage-taken", "saving-throw", "flat-check"].includes(type)) return false;
+    // Posting Drink of my Foes from the sheet is its declaration, not another action.
+    if (message.item?.slug === "drink-of-my-foes"
+      || message.item?.sourceId === "Compendium.pf2e.actionspf2e.Item.vZwa0PZLQvm3X5ME") return false;
+    return message.isCheckRoll || type === "spell-cast"
+      || (["action", "feat"].includes(message.item?.type) && message.item.system.actionType?.value === "action");
+  }
+
+  function getDamageRecord(source, actor, roll) {
     const records = game.messages.contents.filter((m) => {
       const data = metadata(m, resultFlag);
       return m.author?.isGM && data?.rollKey === roll.key && data.actor === actor.uuid && data.weapon === source.item.uuid;
@@ -197,13 +223,33 @@
     const record = available[0];
     const data = metadata(record, resultFlag);
     if (!Number.isFinite(data.damage) || data.damage < 0) throw new Error("Нет достоверного результата нанесённого урона.");
+    const target = source.flags.pf2e.context.target;
+    if ((target?.actor && target.actor !== data.target) || (target?.token && target.token !== data.token)) {
+      throw new Error("Урон применён не к цели этого Удара. Мастеру нужно проверить применение урона.");
+    }
+    if (JSON.stringify(data.combat) !== JSON.stringify(roll.combat)) {
+      throw new Error("Урон применён в другом ходу; этот Удар больше нельзя использовать.");
+    }
+    return record;
+  }
+
+  async function use(request, user) {
+    if (typeof request.source !== "string" || typeof request.ikon !== "string") throw new Error("Некорректный запрос Drink of my Foes.");
+    const source = game.messages.get(request.source);
+    const { actor, action, roll } = validateAction(source, user);
+    const choice = sparkChoices(actor).find((option) => option.value === request.ikon);
+    if (!choice) throw new Error("Выбранный икон недоступен для перемещения искры.");
+    const record = getDamageRecord(source, actor, roll);
     const token = source.token ?? actor.getActiveTokens(true, true).shift();
     if (!token || token.actor?.uuid !== actor.uuid) throw new Error("Токен персонажа недоступен на сцене.");
-    const amount = Math.floor(data.damage / 2);
+    const amount = Math.floor(metadata(record, resultFlag).damage / 2);
     // Durable claim precedes both updates: a double click, another client or a
     // reload cannot heal twice. On partial failure the GM must review the result.
-    await record.update({ [`flags.${moduleId}.${resultFlag}.state`]: "claimed" });
+    // Claim the source as well: deleting/undoing/reapplying a damage receipt must
+    // not make the same successful Strike usable again.
+    await source.update({ [`flags.${moduleId}.${rollFlag}.state`]: "claimed" });
     try {
+      await record.update({ [`flags.${moduleId}.${resultFlag}.state`]: "claimed" });
       if (amount > 0) {
         const options = new Set([...actor.getSelfRollOptions(), ...action.getRollOptions("item"),
           "self:action:slug:drink-of-my-foes", "origin:action:trait:healing", "origin:action:trait:vitality",
@@ -216,6 +262,7 @@
         choice.value || "barrows-edge");
       if (shifted !== !!choice.value) throw new Error("Искра не переместилась.");
       await record.update({ [`flags.${moduleId}.${resultFlag}.state`]: "used" });
+      await source.update({ [`flags.${moduleId}.${rollFlag}.state`]: "used" });
       return `Drink of my Foes ◆: базовое исцеление ${amount} ОЗ; искра — ${choice.label}.`;
     } catch (error) {
       console.error(`${logPrefix} | Drink of my Foes partial application`, error);
@@ -229,8 +276,7 @@
       || request?.status !== "pending" || processed.has(message)) return;
     processed.add(message);
     const actorId = game.messages.get(request.source)?.actor?.uuid ?? request.source;
-    const previous = requests.get(actorId) ?? Promise.resolve();
-    const task = previous.catch(() => {}).then(async () => {
+    await enqueue(requests, actorId, async () => {
       let status = "applied", text;
       try {
         if (!message.author || Date.now() - message.timestamp > 30000) throw new Error("Запрос устарел. Нажмите кнопку снова.");
@@ -239,10 +285,6 @@
       await message.update({ content: `<p>${escape(text)}</p>`,
         [`flags.${moduleId}.${requestFlag}.status`]: status });
     });
-    requests.set(actorId, task);
-    try { await task; }
-    catch (error) { reportError(error); }
-    finally { if (requests.get(actorId) === task) requests.delete(actorId); }
   }
 
   function reportError(error) {
