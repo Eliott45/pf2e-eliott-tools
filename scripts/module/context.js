@@ -20,6 +20,7 @@
       oathOfTheDefenderEnabled: "oathOfTheDefenderEnabled",
       criticalDeckTranslationEnabled: "criticalDeckTranslationEnabled",
       shieldsOfTheSpiritEnabled: "shieldsOfTheSpiritEnabled",
+      templateTargetingEnabled: "templateTargetingEnabled",
     },
   };
 })();

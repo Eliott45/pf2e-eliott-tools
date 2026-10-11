@@ -1,0 +1,366 @@
+.eliott-template-targets {
+  --ett-bg: #17151c;
+  --ett-panel: #211e27;
+  --ett-panel-2: #2a2631;
+  --ett-line: #3b3544;
+  --ett-text: #ece6da;
+  --ett-muted: #9d95a6;
+  --ett-accent: #f0a04b;
+  --ett-accent-2: #ffcf8a;
+  --ett-enemy: #e05a52;
+  --ett-ally: #5cc38a;
+  --ett-neutral: #7aa7d9;
+  --ett-self: #f0c04b;
+  color: var(--ett-text);
+  border: 1px solid #4a3f33;
+  border-radius: 10px;
+  box-shadow: 0 18px 50px #000a, 0 0 0 1px #0008;
+  overflow: hidden;
+}
+.eliott-template-targets > .window-header {
+  background: linear-gradient(180deg, #2a2420, #1d1a1f);
+  border-bottom: 1px solid #4a3f33;
+  color: var(--ett-accent-2);
+}
+.eliott-template-targets .window-content {
+  padding: 0;
+  background: radial-gradient(ellipse at 15% 0%, #f0a04b18, transparent 55%), var(--ett-bg);
+  color: var(--ett-text);
+  overflow: hidden;
+}
+.eliott-template-targets .ett-shell,
+.eliott-template-targets .ett-shell * { box-sizing: border-box; }
+.eliott-template-targets .ett-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  font: 13px/1.4 var(--font-primary, sans-serif);
+}
+.eliott-template-targets :is(h2, p) { margin: 0; padding: 0; border: 0; color: inherit; }
+.eliott-template-targets button {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  font: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.eliott-template-targets :is(button, input):focus-visible { outline: 2px solid var(--ett-accent); outline-offset: 2px; }
+
+/* Spell summary */
+.eliott-template-targets .ett-spell {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--ett-line);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2c2530, #1e1b22);
+}
+.eliott-template-targets .ett-spell > img {
+  width: 48px;
+  height: 48px;
+  border: 1px solid #6b5636;
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: 0 0 0 2px #0006, 0 0 14px #f0a04b33;
+}
+.eliott-template-targets .ett-spell h2 {
+  font-family: var(--font-h2, Georgia, serif);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ett-accent-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.eliott-template-targets .ett-spell p { color: var(--ett-muted); font-size: 12px; margin-top: 1px; }
+.eliott-template-targets .ett-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f0a04b1f;
+  border: 1px solid #f0a04b55;
+  color: var(--ett-accent-2);
+  font-size: 11px;
+  font-weight: 600;
+}
+.eliott-template-targets .ett-traits { display: flex; flex-wrap: wrap; gap: 4px; margin-top: -2px; }
+.eliott-template-targets .ett-traits span {
+  padding: 1px 7px;
+  border-radius: 3px;
+  background: #5a1f1f;
+  border: 1px solid #8a3a32;
+  color: #f4d9c8;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+}
+
+/* Mode selector */
+.eliott-template-targets .ett-modes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+  border-radius: 9px;
+  background: #0f0e12;
+  border: 1px solid var(--ett-line);
+}
+.eliott-template-targets .ett-mode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ett-muted);
+  transition: background .12s, color .12s;
+}
+.eliott-template-targets .ett-mode:hover { background: var(--ett-panel-2); color: var(--ett-text); box-shadow: none; }
+.eliott-template-targets .ett-mode b {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #ffffff12;
+  font-size: 11px;
+}
+.eliott-template-targets .ett-mode.is-active {
+  background: linear-gradient(180deg, #3a2c1c, #2b2219);
+  border-color: #a8763a;
+  color: var(--ett-accent-2);
+  box-shadow: inset 0 1px #ffffff14, 0 2px 8px #0006;
+}
+.eliott-template-targets .ett-mode.is-active b { background: var(--ett-accent); color: #1a1208; }
+.eliott-template-targets .ett-mode[data-mode="enemies"] i { color: var(--ett-enemy); }
+.eliott-template-targets .ett-mode[data-mode="allies"] i { color: var(--ett-ally); }
+
+/* Switch toggles */
+.eliott-template-targets .ett-toggles { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0 2px; }
+.eliott-template-targets .ett-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ett-text);
+  cursor: pointer;
+  user-select: none;
+}
+.eliott-template-targets .ett-toggle > i { color: var(--ett-muted); font-size: 11px; }
+.eliott-template-targets .ett-toggle.is-disabled { opacity: .45; cursor: not-allowed; }
+.eliott-template-targets .ett-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.eliott-template-targets .ett-switch {
+  position: relative;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 17px;
+  border-radius: 999px;
+  background: #3a3542;
+  border: 1px solid #4b4554;
+  transition: background .15s, border-color .15s;
+}
+.eliott-template-targets .ett-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #cfc8d6;
+  transition: transform .15s;
+}
+.eliott-template-targets .ett-toggle input:checked + .ett-switch { background: var(--ett-accent); border-color: #ffbe73; }
+.eliott-template-targets .ett-toggle input:checked + .ett-switch::after { transform: translateX(13px); background: #1a1208; }
+.eliott-template-targets .ett-toggle input:focus-visible + .ett-switch { outline: 2px solid var(--ett-accent); outline-offset: 2px; }
+
+/* Token list */
+.eliott-template-targets .ett-list-wrap {
+  border: 1px solid var(--ett-line);
+  border-radius: 8px;
+  background: var(--ett-panel);
+  overflow: hidden;
+}
+.eliott-template-targets .ett-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  border-bottom: 1px solid var(--ett-line);
+  color: var(--ett-muted);
+  font-size: 12px;
+}
+.eliott-template-targets .ett-list-head b { color: var(--ett-text); }
+.eliott-template-targets .ett-list-head em { font-style: normal; color: #d9a35b; }
+.eliott-template-targets .ett-list-actions { display: flex; gap: 2px; }
+.eliott-template-targets .ett-list-actions button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ett-muted);
+}
+.eliott-template-targets .ett-list-actions button:hover:not(:disabled) { background: var(--ett-panel-2); color: var(--ett-text); box-shadow: none; }
+.eliott-template-targets .ett-list-actions button:disabled { opacity: .35; cursor: default; }
+.eliott-template-targets .ett-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 290px;
+  overflow-y: auto;
+  padding: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #4b4554 transparent;
+}
+.eliott-template-targets .ett-row {
+  --ett-rel: var(--ett-neutral);
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto 22px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: .55;
+  transition: background .12s, opacity .12s, border-color .12s;
+}
+.eliott-template-targets .ett-row:hover { background: #ffffff0a; opacity: .85; }
+.eliott-template-targets .ett-row.is-checked { opacity: 1; background: #ffffff08; border-color: #ffffff10; }
+.eliott-template-targets .ett-row.is-checked:hover { background: #ffffff10; }
+.eliott-template-targets .ett-row input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.eliott-template-targets .ett-row:has(input:focus-visible) { outline: 2px solid var(--ett-accent); outline-offset: -2px; }
+.eliott-template-targets .ett-rel-enemy { --ett-rel: var(--ett-enemy); }
+.eliott-template-targets .ett-rel-ally { --ett-rel: var(--ett-ally); }
+.eliott-template-targets .ett-rel-self { --ett-rel: var(--ett-self); }
+.eliott-template-targets .ett-rel-neutral { --ett-rel: var(--ett-neutral); }
+.eliott-template-targets .ett-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  padding: 2px;
+  background: var(--ett-rel);
+  box-shadow: 0 0 0 1px #0008;
+}
+.eliott-template-targets .ett-row:not(.is-checked) .ett-avatar { filter: grayscale(.8); }
+.eliott-template-targets .ett-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #0d0c10;
+}
+.eliott-template-targets .ett-row-body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.eliott-template-targets .ett-row-body strong {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.eliott-template-targets .ett-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.eliott-template-targets .ett-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 16px;
+  background: #ffffff10;
+  color: var(--ett-muted);
+}
+.eliott-template-targets .ett-tag.ett-rel-enemy,
+.eliott-template-targets .ett-tag.ett-rel-ally,
+.eliott-template-targets .ett-tag.ett-rel-self,
+.eliott-template-targets .ett-tag.ett-rel-neutral {
+  color: var(--ett-rel);
+  background: color-mix(in srgb, var(--ett-rel) 14%, transparent);
+}
+.eliott-template-targets .ett-tag.ett-warn { color: #f0b35b; background: #f0a04b1c; }
+.eliott-template-targets .ett-tag.ett-manual { color: #c9b6f2; background: #8d6ee61f; font-style: italic; }
+.eliott-template-targets .ett-row-side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 52px; }
+.eliott-template-targets .ett-hp {
+  display: block;
+  width: 52px;
+  height: 5px;
+  border-radius: 3px;
+  background: #ffffff14;
+  overflow: hidden;
+}
+.eliott-template-targets .ett-hp span { display: block; height: 100%; background: linear-gradient(90deg, #c94b45, #e6b04a 50%, #5cc38a); background-size: 52px 100%; }
+.eliott-template-targets .ett-hp-text { font-size: 10px; color: var(--ett-muted); font-variant-numeric: tabular-nums; }
+.eliott-template-targets .ett-check {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1px solid #5a5363;
+  color: transparent;
+  font-size: 11px;
+  transition: background .12s, border-color .12s;
+}
+.eliott-template-targets .ett-row.is-checked .ett-check { background: var(--ett-accent); border-color: #ffbe73; color: #1a1208; }
+.eliott-template-targets .ett-row.is-blocked .ett-avatar { background: repeating-linear-gradient(45deg, #6b5a3e 0 4px, #3b3326 4px 8px); }
+.eliott-template-targets .ett-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 22px 10px;
+  color: var(--ett-muted);
+}
+.eliott-template-targets .ett-empty i { font-size: 22px; opacity: .6; }
+
+/* Footer */
+.eliott-template-targets .ett-footer { display: flex; flex-direction: column; gap: 10px; }
+.eliott-template-targets .ett-dismiss { padding: 0 2px; color: var(--ett-muted); }
+.eliott-template-targets .ett-buttons { display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; }
+.eliott-template-targets .ett-buttons button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 7px;
+  font-weight: 600;
+}
+.eliott-template-targets .ett-cancel { border: 1px solid var(--ett-line); background: var(--ett-panel); color: var(--ett-text); }
+.eliott-template-targets .ett-cancel:hover { background: var(--ett-panel-2); box-shadow: none; }
+.eliott-template-targets .ett-confirm {
+  border: 1px solid #ffbe73;
+  background: linear-gradient(180deg, #f6b35f, #e08a2e);
+  color: #1d1307;
+  box-shadow: inset 0 1px #fff5, 0 4px 14px #f0a04b40;
+}
+.eliott-template-targets .ett-confirm:hover { background: linear-gradient(180deg, #ffc072, #ea9638); box-shadow: inset 0 1px #fff5, 0 4px 18px #f0a04b66; }
+.eliott-template-targets .ett-confirm b {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #1d130726;
+}
+.eliott-template-targets .ett-hint { text-align: center; color: #746c7d; font-size: 10.5px; }
+.eliott-template-targets kbd {
+  padding: 0 4px;
+  border: 1px solid #4b4554;
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: #221f28;
+  color: var(--ett-muted);
+  font: 10px/14px var(--font-mono, monospace);
+}

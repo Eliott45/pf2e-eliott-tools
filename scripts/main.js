@@ -12,6 +12,7 @@
     { key: "energyResistantRunes", file: "energy-resistant-runes", label: "рун сопротивления энергии", resetActors: true },
     { key: "barrowsEdge", file: "barrows-edge", label: "Barrow's Edge", resetActors: true },
     { key: "drinkOfMyFoes", file: "drink-of-my-foes", label: "Drink of my Foes" },
+    { key: "templateTargeting", file: "template-targeting", label: "выбора целей по шаблону" },
   ];
 
   Hooks.once("init", () => {
@@ -380,6 +381,11 @@
             key: settings.clearTargetsOnTurnEndEnabled,
             name: "Сбрасывать цели в конце хода",
             hint: "Автоматически снимает все ваши цели при смене хода или раунда в боевом трекере.",
+            scope: "client",
+          },
+          {
+            key: settings.templateTargetingEnabled,
+            name: "Выбор целей по шаблону заклинания",
             scope: "client",
           },
           {

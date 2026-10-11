@@ -56,6 +56,7 @@ function setup({ loaded = false, bestiaryLoaded = true, runesLoaded = true, chal
     energyResistantRunes: { onInit: noOp },
     barrowsEdge: { onInit: () => { context.game.settings.get("pf2e-eliott-tools", "barrowsEdgeEnabled"); initialized.push("barrowsEdge"); } },
     drinkOfMyFoes: { onInit: () => { context.game.settings.get("pf2e-eliott-tools", "drinkOfMyFoesEnabled"); initialized.push("drinkOfMyFoes"); } },
+    templateTargeting: { onInit: noOp },
     bestiary: { initialize: noOp },
     regaliaIntensify: { initialize: noOp },
     chalice: { initialize: noOp, updateMacros: noOp },
