@@ -155,3 +155,109 @@
 @container bestiary-sheet (max-width: 620px) { .eliott-bestiary .eb-sheet { grid-template-columns: 155px minmax(0,1fr); gap: 12px; } .eliott-bestiary .eb-sheet-sidebar { padding-right: 10px; } .eliott-bestiary .eb-portrait > img { height: 175px; } .eliott-bestiary .eb-title-row { flex-wrap: wrap; } .eliott-bestiary .eb-title-row > h2 { flex-basis: 100%; font-size: 23px; } .eliott-bestiary .eb-level { margin-bottom: 8px; } .eliott-bestiary .eb-level .eb-stat { grid-template-columns: auto auto auto; } .eliott-bestiary .eb-level .eb-visibility { grid-column: auto; } .eliott-bestiary .eb-spell-row { flex-wrap: wrap; gap: 7px; } }
 @container bestiary-sheet (max-width: 450px) { .eliott-bestiary .eb-sheet { grid-template-columns: minmax(0,1fr); } .eliott-bestiary .eb-sheet-main { display: contents; } .eliott-bestiary .eb-sheet-heading { grid-row: 1; } .eliott-bestiary .eb-sheet-sidebar { grid-row: 2; padding: 0; border: 0; } .eliott-bestiary .eb-card-actions { grid-row: 3; } .eliott-bestiary .eb-portrait > img { height: 180px; } }
 @container bestiary-sheet (min-width: 451px) and (max-width: 620px) { .eliott-bestiary .eb-sheet-sidebar .eb-section-title { flex-wrap: wrap; gap: 0; } .eliott-bestiary .eb-sheet-sidebar .eb-section-title > h3 { flex-basis: 100%; } .eliott-bestiary .eb-sheet-sidebar .eb-section-title > button { margin-left: auto; } }
+
+/* ── Polish ─────────────────────────────────────────────────────────── */
+.eliott-bestiary .eb-shell { position: relative; }
+.eliott-bestiary :where(.eb-shell) button { transition: background .16s, border-color .16s, color .16s, box-shadow .16s, transform .08s; }
+.eliott-bestiary :where(.eb-shell) button:active:not(:disabled) { transform: translateY(1px); }
+.eliott-bestiary .eb-top { position: relative; overflow: hidden; isolation: isolate; }
+.eliott-bestiary .eb-top::before { content: ""; position: absolute; inset: -40% auto -40% -10%; width: 55%; z-index: -1; background: radial-gradient(ellipse at center, #f3c87a2e, transparent 65%); animation: eb-candle 5s ease-in-out infinite alternate; pointer-events: none; }
+.eliott-bestiary .eb-top h1 { background: linear-gradient(100deg, #f3e3bb 0 42%, #fff6dc 50%, #f3e3bb 58% 100%); background-size: 260% 100%; background-position: 0 0; -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; }
+.eliott-bestiary .eb-journal-mark { background: radial-gradient(circle at 35% 30%, #ffffff1c, transparent 60%); transition: border-color .3s, box-shadow .3s; }
+.eliott-bestiary .eb-journal-mark:hover { border-color: #e5cd98; box-shadow: 0 0 14px #e8c27a55; }
+.eliott-bestiary .eb-journal-mark:hover i { animation: eb-spin 5s linear infinite; }
+
+.eliott-bestiary .eb-creature { position: relative; transition: background .18s, border-color .18s, box-shadow .18s, transform .18s; }
+.eliott-bestiary .eb-creature:hover { transform: translateX(3px); background: #f3e6c78c; border-color: #b9a47b80; }
+.eliott-bestiary .eb-creature-portrait { position: relative; display: block; width: 45px; height: 45px; }
+.eliott-bestiary .eb-creature img { border-radius: 50%; border: 2px solid #b39a69; box-shadow: 0 0 0 2px #f4e9cf, 0 2px 6px #5a3f1a40; object-fit: cover; transition: transform .25s cubic-bezier(.3,1.5,.6,1), border-color .2s; }
+.eliott-bestiary .eb-creature:hover img { transform: scale(1.08) rotate(-3deg); }
+.eliott-bestiary .eb-creature.is-selected img { border-color: #6d7f4f; }
+.eliott-bestiary .eb-creature-level { position: absolute; right: -6px; bottom: -4px; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 10px; background: radial-gradient(circle at 35% 30%, #a2483a, #6f2219); border: 1px solid #f0d9a8; color: #fbecc9; font: 700 10px/1 var(--font-primary, sans-serif); box-shadow: 0 1px 3px #0005; }
+.eliott-bestiary .eb-creature.is-selected::after { content: ""; position: absolute; top: -1px; right: 10px; width: 11px; height: 26px; background: linear-gradient(#a03a2b, #7a2419); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 74%, 0 100%); filter: drop-shadow(0 1px 1px #0004); animation: eb-ribbon .35s cubic-bezier(.2,.9,.3,1.2) both; }
+
+.eliott-bestiary .eb-portrait > img { transition: filter .4s; }
+.eliott-bestiary .eb-portrait.is-hidden > img { filter: sepia(.65) grayscale(.35) contrast(.9) brightness(.92); }
+.eliott-bestiary .eb-title-row > h2::after { content: ""; display: block; width: min(180px, 70%); height: 2px; margin-top: 6px; background: linear-gradient(90deg, #8d7448, #8d744800); transform-origin: left; }
+.eliott-bestiary .eb-level .eb-stat { background: radial-gradient(circle at 30% 20%, #5e4a2e, #3b2d1c); border-color: #b39a69; color: #f3e3bb; box-shadow: inset 0 0 0 2px #0002, 0 2px 6px #4a321533; }
+.eliott-bestiary .eb-level .eb-stat-label { color: #d6c39a; }
+.eliott-bestiary .eb-level .eb-stat-value { color: #fff1cf; }
+.eliott-bestiary .eb-stat[data-fid] .eb-stat-label::before { display: inline-block; width: 1.3em; font: var(--fa-font-solid); font-size: 11px; opacity: .85; }
+.eliott-bestiary .eb-stat[data-fid="ac"] .eb-stat-label::before { content: "\f3ed"; color: #5f7246; }
+.eliott-bestiary .eb-stat[data-fid="hp"] .eb-stat-label::before { content: "\f004"; color: #9b3b2c; }
+.eliott-bestiary .eb-stat[data-fid="save-fortitude"] .eb-stat-label::before { content: "\f6de"; color: #8a5a2b; }
+.eliott-bestiary .eb-stat[data-fid="save-reflex"] .eb-stat-label::before { content: "\f0e7"; color: #a7832a; }
+.eliott-bestiary .eb-stat[data-fid="save-will"] .eb-stat-label::before { content: "\f5dc"; color: #5a5f8a; }
+
+/* Facts hidden from players look fogged for the GM */
+.eliott-bestiary :is(.eb-field,.eb-trait-tag,.eb-fact-row,.eb-stat).is-hidden { background-image: repeating-linear-gradient(-45deg, #8a785412 0 6px, transparent 6px 12px); }
+.eliott-bestiary .eb-trait-tag { transition: transform .15s, box-shadow .15s; }
+.eliott-bestiary .eb-trait-tag:hover { transform: translateY(-1px); box-shadow: 0 2px 4px #5a3f1a26; }
+.eliott-bestiary .eb-field { transition: border-color .2s, box-shadow .2s; }
+.eliott-bestiary .eb-field:hover { border-color: #a58c60; box-shadow: 0 2px 8px #6b4a2214; }
+.eliott-bestiary :is(.eb-inline-roll,.eb-reference-link) { transition: filter .15s; }
+.eliott-bestiary .eb-inline-roll:hover > i { animation: eb-wobble .5s ease-in-out; }
+
+.eliott-bestiary .eb-shell.is-dragover { outline: 0; }
+.eliott-bestiary .eb-shell.is-dragover::after { content: "Отпустите, чтобы добавить существо"; position: absolute; inset: 12px; z-index: 5; display: grid; place-items: center; border: 2px dashed var(--eb-accent); border-radius: 8px; background: #42573524; color: #2f4224; font: 700 18px/1.3 Georgia, "Times New Roman", serif; pointer-events: none; animation: eb-breathe 1.2s ease-in-out infinite; }
+.eliott-bestiary .eb-status.is-busy::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 7px; vertical-align: -1px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: eb-spin .7s linear infinite; }
+.eliott-bestiary .eb-empty > i { animation: eb-float 4.5s ease-in-out infinite; filter: drop-shadow(0 12px 6px #5a3f1a22); }
+.eliott-bestiary :is(.eb-list, .eb-detail) { scrollbar-width: thin; }
+
+/* ── Motion ─────────────────────────────────────────────────────────── */
+/* Opening the journal */
+.eliott-bestiary .eb-anim-open .eb-top { animation: eb-drop .55s cubic-bezier(.2,.8,.2,1) both; }
+.eliott-bestiary .eb-anim-open .eb-top h1 { animation: eb-shine 1.8s .35s ease-out both; }
+.eliott-bestiary .eb-anim-open .eb-journal-mark i { animation: eb-compass 1.2s .1s cubic-bezier(.3,1.4,.5,1) both; }
+.eliott-bestiary .eb-anim-open .eb-sidebar { animation: eb-slide-in .5s .05s cubic-bezier(.2,.8,.2,1) both; }
+.eliott-bestiary .eb-anim-open .eb-creature { animation: eb-rise .4s both; animation-delay: calc(var(--i, 0) * 45ms + 200ms); }
+.eliott-bestiary .eb-anim-open .eb-detail > * { animation: eb-page .6s .15s cubic-bezier(.2,.8,.2,1) both; }
+.eliott-bestiary .eb-anim-open .eb-status { animation: eb-fade .6s .45s both; }
+
+/* Turning to another creature */
+.eliott-bestiary .eb-detail { perspective: 1400px; }
+.eliott-bestiary .eb-detail > .eb-anim-page { animation: eb-page .5s cubic-bezier(.2,.8,.2,1) both; transform-origin: left center; }
+.eliott-bestiary :is(.eb-anim-page, .eb-anim-open .eb-sheet) .eb-portrait > img { animation: eb-develop 1.1s .1s ease-out both; }
+.eliott-bestiary :is(.eb-anim-page, .eb-anim-open .eb-sheet) .eb-title-row > h2::after { animation: eb-underline .7s .25s ease-out both; }
+.eliott-bestiary :is(.eb-anim-page, .eb-anim-open .eb-sheet) .eb-level .eb-stat { animation: eb-stamp .5s .35s cubic-bezier(.3,1.6,.5,1) both; }
+.eliott-bestiary :is(.eb-anim-page, .eb-anim-open .eb-sheet) :is(.eb-sheet-main, .eb-sheet-sidebar) > * { animation: eb-rise .45s both; }
+.eliott-bestiary :is(.eb-anim-page, .eb-anim-open .eb-sheet) :is(.eb-sheet-main, .eb-sheet-sidebar) > :nth-child(2) { animation-delay: 60ms; }
+.eliott-bestiary :is(.eb-anim-page, .eb-anim-open .eb-sheet) :is(.eb-sheet-main, .eb-sheet-sidebar) > :nth-child(3) { animation-delay: 110ms; }
+.eliott-bestiary :is(.eb-anim-page, .eb-anim-open .eb-sheet) :is(.eb-sheet-main, .eb-sheet-sidebar) > :nth-child(4) { animation-delay: 160ms; }
+.eliott-bestiary :is(.eb-anim-page, .eb-anim-open .eb-sheet) :is(.eb-sheet-main, .eb-sheet-sidebar) > :nth-child(5) { animation-delay: 210ms; }
+.eliott-bestiary :is(.eb-anim-page, .eb-anim-open .eb-sheet) :is(.eb-sheet-main, .eb-sheet-sidebar) > :nth-child(6) { animation-delay: 250ms; }
+.eliott-bestiary :is(.eb-anim-page, .eb-anim-open .eb-sheet) :is(.eb-sheet-main, .eb-sheet-sidebar) > :nth-child(n+7) { animation-delay: 290ms; }
+
+/* A fact the GM just revealed, or one that just appeared for players */
+.eliott-bestiary .eb-anim-reveal { animation: eb-reveal 1.3s ease-out both; }
+.eliott-bestiary .eb-portrait.eb-anim-reveal { animation: none; }
+.eliott-bestiary .eb-portrait.eb-anim-reveal > img { animation: eb-develop 1.4s ease-out both; }
+/* Sections and spell descriptions unfolding */
+.eliott-bestiary .eb-anim-unfold { animation: eb-unfold .32s cubic-bezier(.2,.8,.2,1) both; transform-origin: top; }
+
+@keyframes eb-drop { from { opacity: 0; transform: translateY(-14px); } }
+@keyframes eb-slide-in { from { opacity: 0; transform: translateX(-24px); } }
+@keyframes eb-rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes eb-fade { from { opacity: 0; } }
+@keyframes eb-page { from { opacity: 0; transform: translateX(26px) rotateY(-6deg); } }
+@keyframes eb-develop { 0% { filter: sepia(1) blur(5px) brightness(1.25) contrast(.8); opacity: .4; } 60% { filter: sepia(.4) blur(0) brightness(1.05); opacity: 1; } 100% { filter: none; } }
+@keyframes eb-underline { from { transform: scaleX(0); opacity: 0; } }
+@keyframes eb-stamp { 0% { opacity: 0; transform: scale(1.6) rotate(-12deg); } 70% { opacity: 1; transform: scale(.94) rotate(2deg); } 100% { transform: none; } }
+@keyframes eb-shine { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@keyframes eb-compass { from { transform: rotate(-270deg) scale(.4); opacity: 0; } }
+@keyframes eb-spin { to { transform: rotate(360deg); } }
+@keyframes eb-ribbon { from { transform: translateY(-14px); opacity: 0; } }
+@keyframes eb-candle { 0% { opacity: .7; transform: translateX(0) scale(1); } 50% { opacity: 1; } 100% { opacity: .8; transform: translateX(6%) scale(1.06); } }
+@keyframes eb-float { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-9px) rotate(2deg); } }
+@keyframes eb-breathe { 50% { background-color: #4257353b; border-color: #6d8a55; } }
+@keyframes eb-wobble { 25% { transform: rotate(-18deg); } 60% { transform: rotate(14deg); } }
+@keyframes eb-unfold { from { opacity: 0; transform: translateY(-6px) scaleY(.97); } }
+@keyframes eb-reveal {
+  0% { opacity: .2; filter: blur(3px) sepia(.6); box-shadow: 0 0 0 0 #d9b25f00; }
+  35% { opacity: 1; filter: none; box-shadow: 0 0 0 4px #d9b25f66, 0 0 18px #e7c47a88; background-color: #f8e7b8; }
+  100% { box-shadow: 0 0 0 0 #d9b25f00; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eliott-bestiary *, .eliott-bestiary *::before, .eliott-bestiary *::after { animation: none !important; transition: none !important; }
+}

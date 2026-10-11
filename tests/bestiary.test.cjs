@@ -755,3 +755,22 @@ test("sheet layout retains every field once and revealing senses does not reveal
   await app.command({ dataset: { command: "group", scope: "senses" } });
   assert.equal(feature.store.data(publicDoc).projection.fields.length, 0);
 });
+
+test("cards expose motion hooks: selection, field ids and a level seal only when the level is known", async () => {
+  const { feature, game } = setup();
+  const { doc } = await feature.store.addActor(actor());
+  const app = new feature.Application(); app.render = async () => {};
+  app.selected = doc.id;
+  const gmHtml = app.content();
+  assert.match(gmHtml, new RegExp(`class="eb-shell" data-selected="${doc.id}"`));
+  assert.match(gmHtml, /class="eb-stat is-hidden" data-fid="hp"/);
+  assert.match(gmHtml, /class="eb-portrait [^"]*" data-fid="image:goblin.webp"/);
+  assert.match(gmHtml, /class="eb-creature-level" title="Уровень 1">1</);
+  app.preview = true;
+  assert.doesNotMatch(app.content(), /eb-creature-level/);
+  await feature.store.update(doc, (entry) => { entry.revealed = ["level", "hp"]; return entry; });
+  game.user = { id: "player", isGM: false };
+  const playerHtml = app.content();
+  assert.match(playerHtml, /eb-creature-level/);
+  assert.match(playerHtml, /class="eb-stat " data-fid="hp"/);
+});
