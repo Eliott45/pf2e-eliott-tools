@@ -14,10 +14,13 @@
     enemy: "Враг",
     neutral: "Нейтральный",
   };
+  const animationModuleId = "autoanimations";
+  // Areas whose dialog is (or was) open: Automated Animations waits on them before playing.
+  const pending = new Map();
   let current = null;
 
   tools.features ??= {};
-  tools.features.templateTargeting = { onInit, collectCandidates, isIncluded };
+  tools.features.templateTargeting = { onInit, collectCandidates, isIncluded, pending };
 
   function onInit() {
     game.settings.register(moduleId, settings.templateTargetingEnabled, {
@@ -30,6 +33,15 @@
       onChange: (value) => { if (!value) current?.close(); },
     });
 
+    game.settings.register(moduleId, settings.templateTargetingAnimationSync, {
+      name: "Синхронизация выбора целей с Automated Animations",
+      hint: "Анимация шаблона (в том числе из PF2e Animation Macros) ждёт, пока вы подтвердите цели в окне, и играет уже по выбранным целям. Галка «Убрать шаблон» в окне решает, удалит ли анимация шаблон после проигрывания. Без модуля Automated Animations ни на что не влияет.",
+      scope: "client",
+      config: true,
+      type: Boolean,
+      default: true,
+    });
+
     game.settings.register(moduleId, optionsSetting, {
       scope: "client",
       config: false,
@@ -40,8 +52,86 @@
     ensureStylesheet();
     Hooks.on("createRegion", onCreateRegion);
     Hooks.on("updateRegion", (region) => { if (current?.region === region) current.refresh(); });
-    Hooks.on("deleteRegion", (region) => { if (current?.region === region) current.close(); });
+    // Animation modules (Automated Animations "Remove Template", PF2e Animation Macros)
+    // delete the area right after their effect plays; keep the dialog and its snapshot.
+    Hooks.on("deleteRegion", (region) => {
+      if (current?.region === region) current.onRegionDeleted();
+      const entry = pending.get(region.id);
+      if (entry?.settled) pending.delete(region.id);
+    });
     Hooks.on("canvasTearDown", () => current?.close());
+    Hooks.on("AutomatedAnimations-WorkflowStart", onAnimationWorkflowStart);
+    Hooks.on("aa.preDataSanitize", onAnimationPreSanitize);
+  }
+
+  function isAnimationSyncEnabled() {
+    return game.modules?.get(animationModuleId)?.active === true
+      && game.settings.get(moduleId, settings.templateTargetingAnimationSync) !== false;
+  }
+
+  function createPending(region) {
+    let settle;
+    const entry = {
+      claimed: false,
+      noAnimation: false,
+      settled: false,
+      result: null,
+      promise: new Promise((resolve) => { settle = resolve; }),
+      claimWaiters: [],
+    };
+    entry.settle = (result) => {
+      if (entry.settled) return;
+      entry.settled = true;
+      entry.result = result;
+      settle(result);
+    };
+    entry.decide = () => {
+      for (const waiter of entry.claimWaiters.splice(0)) waiter();
+    };
+    pending.set(region.id, entry);
+    // Drop stale entries even if neither AA nor the user ever finishes.
+    setTimeout(() => { if (pending.get(region.id) === entry && entry.settled) pending.delete(region.id); }, 120000);
+    return entry;
+  }
+
+  // Automated Animations awaits `deferrals` before building its handler,
+  // so the template animation starts only after the dialog is closed.
+  function onAnimationWorkflowStart(data, animationData) {
+    const region = data?.isTemplate ? data.templateData : null;
+    const entry = region ? pending.get(region.id) : null;
+    if (!entry) return;
+    if (!animationData) {
+      entry.noAnimation = true;
+      entry.decide();
+      return;
+    }
+    entry.claimed = true;
+    entry.decide();
+    if (current?.animation === entry && current.rendered) current.render();
+    data.deferrals ??= [];
+    data.deferrals.push(entry.promise.then((result) => {
+      data.targets = [...result.targets];
+      data.hitTargets = [...result.targets];
+    }));
+  }
+
+  // Runs on AA's own deep clone of the animation settings: the autorec menu itself is untouched.
+  function onAnimationPreSanitize(handler, data) {
+    const region = handler?.templateData;
+    const entry = region ? pending.get(region.id) : null;
+    if (!entry?.claimed || !entry.result) return;
+    const removeTemplate = entry.result.dismiss;
+    for (const options of [data?.primary?.options, data?.data?.options, data?.data?.projectile?.options]) {
+      if (options && typeof options === "object") options.removeTemplate = removeTemplate;
+    }
+  }
+
+  function waitForAnimationClaim(entry, timeout = 2000) {
+    if (entry.claimed || entry.noAnimation) return Promise.resolve();
+    return new Promise((resolve) => {
+      const timer = setTimeout(resolve, timeout);
+      entry.claimWaiters.push(() => { clearTimeout(timer); resolve(); });
+    });
   }
 
   function ensureStylesheet() {
@@ -65,7 +155,9 @@
 
     try {
       current?.close();
-      current = new TemplateTargetingApp(region);
+      // Registered synchronously: AA reaches its workflow only after awaiting the item lookup.
+      const animation = isAnimationSyncEnabled() ? createPending(region) : null;
+      current = new TemplateTargetingApp(region, animation);
       current.render({ force: true });
     } catch (error) {
       console.error(`${logPrefix} | Could not open template targeting`, error);
@@ -250,9 +342,10 @@
       position: { width: 420, height: "auto" },
     };
 
-    constructor(region) {
+    constructor(region, animation = null) {
       super({ id: `eliott-template-targets-${region.id}`, position: initialPosition() });
       this.region = region;
+      this.animation = animation;
       this.source = resolveSource(region);
       this.summary = describeSource(this.source);
       this.choices = loadOptions();
@@ -266,9 +359,14 @@
     }
 
     refresh() {
-      if (!this.rendered) return;
+      if (!this.rendered || this.regionDeleted) return;
       this.rows = collectCandidates(this.source);
       this.render();
+    }
+
+    onRegionDeleted() {
+      this.regionDeleted = true;
+      if (this.rendered) this.render();
     }
 
     checked(row) {
@@ -360,7 +458,11 @@
           <div class="ett-list" data-list>${rows || `<div class="ett-empty"><i class="fa-solid fa-ghost" aria-hidden="true"></i><span>В области нет существ</span></div>`}</div>
         </section>
         <footer class="ett-footer">
-          <label class="ett-toggle ett-dismiss"><input type="checkbox" data-option="dismiss" ${options.dismiss ? "checked" : ""}><span class="ett-switch" aria-hidden="true"></span>Убрать шаблон после выбора</label>
+          ${this.animation?.claimed && !this.animation.settled
+            ? `<p class="ett-anim-wait"><i class="fa-solid fa-film" aria-hidden="true"></i> Анимация начнётся после подтверждения</p>` : ""}
+          ${this.regionDeleted
+            ?`<p class="ett-gone"><i class="fa-solid fa-wand-sparkles" aria-hidden="true"></i> Шаблон уже убран анимацией — список целей сохранён</p>`
+            : `<label class="ett-toggle ett-dismiss"><input type="checkbox" data-option="dismiss" ${options.dismiss ? "checked" : ""}><span class="ett-switch" aria-hidden="true"></span>Убрать шаблон после выбора</label>`}
           <div class="ett-buttons">
             <button type="button" class="ett-cancel" data-action="cancel"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Отмена</button>
             <button type="button" class="ett-confirm" data-action="confirm"><i class="fa-solid fa-crosshairs" aria-hidden="true"></i> ${confirmLabel}</button>
@@ -437,8 +539,15 @@
       const ids = this.selection().map((row) => row.id).filter((id) => canvas.tokens.get(id));
       setTargets(ids);
       saveOptions(this.choices);
-      const dismiss = this.choices.dismiss && !!this.region.parent?.regions?.get(this.region.id);
+      let dismiss = this.choices.dismiss && !this.regionDeleted && !!this.region.parent?.regions?.get(this.region.id);
+      const animation = this.animation;
+      animation?.settle({ targets: ids.map((id) => canvas.tokens.get(id)), dismiss: this.choices.dismiss });
       await this.close();
+      if (dismiss && animation) {
+        // A claimed animation removes the area itself once it has played.
+        await waitForAnimationClaim(animation);
+        dismiss = !animation.claimed && !!this.region.parent?.regions?.get(this.region.id);
+      }
       if (dismiss) {
         try {
           await this.region.delete();
@@ -450,6 +559,8 @@
 
     async close(options) {
       this.hover(null);
+      // Cancelled or closed: play the animation with the current targets and keep the area.
+      this.animation?.settle({ targets: [...(game.user.targets ?? [])], dismiss: false });
       if (current === this) current = null;
       return super.close(options);
     }

@@ -389,6 +389,11 @@
             scope: "client",
           },
           {
+            key: settings.templateTargetingAnimationSync,
+            name: "Синхронизация с Automated Animations",
+            scope: "client",
+          },
+          {
             key: settings.combatTrackerHpRingEnabled,
             name: "Показывать HP-кольцо в трекере",
             hint: "Добавляет круговой индикатор здоровья вокруг портрета участника боя, учитывая видимость HP-бара токена.",

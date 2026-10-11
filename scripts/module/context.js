@@ -21,6 +21,7 @@
       criticalDeckTranslationEnabled: "criticalDeckTranslationEnabled",
       shieldsOfTheSpiritEnabled: "shieldsOfTheSpiritEnabled",
       templateTargetingEnabled: "templateTargetingEnabled",
+      templateTargetingAnimationSync: "templateTargetingAnimationSync",
     },
   };
 })();

@@ -364,3 +364,27 @@
   color: var(--ett-muted);
   font: 10px/14px var(--font-mono, monospace);
 }
+.eliott-template-targets .ett-gone {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 6px 9px;
+  border: 1px dashed #6b5636;
+  border-radius: 6px;
+  background: #f0a04b12;
+  color: var(--ett-accent-2);
+  font-size: 12px;
+}
+.eliott-template-targets .ett-anim-wait {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 0 2px;
+  color: var(--ett-muted);
+  font-size: 12px;
+}
+.eliott-template-targets .ett-anim-wait i { color: var(--ett-accent); animation: ett-blink 1.6s ease-in-out infinite; }
+@keyframes ett-blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .eliott-template-targets .ett-anim-wait i { animation: none; } }

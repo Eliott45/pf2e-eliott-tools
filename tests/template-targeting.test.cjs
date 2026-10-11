@@ -108,3 +108,156 @@ test("the client toggle and its hidden options are registered on init", () => {
   assert.equal(env.settings.get("templateTargetingOptions").config, false);
   assert.ok(env.hooks.has("createRegion"));
 });
+
+function dialogSetup({ animations = false, sync = true } = {}) {
+  const hooks = new Map();
+  const targeted = [];
+  const apps = [];
+  const state = { closed: 0, regionDeletes: 0 };
+  const scene = { regions: new Map() };
+  const region = { id: "r1", parent: scene, isEffectArea: true, flags: { pf2e: { areaShape: "burst", origin: {} } },
+    getCoverage: () => ({ covered: [], blocked: [] }), delete: async () => { state.regionDeletes++; scene.regions.delete("r1"); } };
+  scene.regions.set(region.id, region);
+  const ally = { document: { id: "ally", name: "Ally", x: 0, y: 0, width: 1, height: 1, isOwner: true, texture: { src: "a.png" }, testInsideRegion: () => true },
+    actor: { alliance: "party", isOfType: () => true }, visible: true };
+  const userTargets = new Set();
+  const canvas = { ready: true, scene, grid: {}, mousePosition: null,
+    tokens: { placeables: [ally], get: (id) => (id === "ally" ? ally : null),
+      setTargets: (ids) => { targeted.push([...ids]); userTargets.clear(); for (const id of ids) userTargets.add(ally); } } };
+  class ApplicationV2 {
+    constructor(options) { this.options = options; apps.push(this); }
+    render() { this.rendered = true; return this; }
+    close() { state.closed++; this.rendered = false; return this; }
+  }
+  const context = vm.createContext({
+    canvas, CONST: { TOKEN_DISPLAY_MODES: { HOVER: 30, ALWAYS: 50 } }, CONFIG: { PF2E: {} }, window: { innerWidth: 1600, innerHeight: 900 },
+    Hooks: { on: (name, fn) => hooks.set(name, fn) }, clearTimeout,
+    setTimeout: (fn, ms) => { const timer = setTimeout(fn, ms); timer.unref(); return timer; },
+    document: { querySelectorAll: () => [], createElement: () => ({}), head: { append: () => {} } },
+    foundry: { utils: { getRoute: (path) => path }, applications: { api: { ApplicationV2 } } },
+    game: { user: { id: "u1", isGM: false, targets: userTargets }, keyboard: { isModifierActive: () => false }, messages: { get: () => null },
+      modules: new Map(animations ? [["autoanimations", { active: true }]] : []),
+      i18n: { has: () => false, localize: (key) => key },
+      settings: { register: () => {}, set: async () => {},
+        get: (_id, key) => (key === "templateTargetingOptions" ? {} : key === "templateTargetingAnimationSync" ? sync : true) } },
+    console,
+  });
+  vm.runInContext(contextSource, context);
+  vm.runInContext(featureSource, context);
+  context.pf2eEliottTools.features.templateTargeting.onInit();
+  hooks.get("createRegion")(region, {}, "u1");
+  // What Automated Animations does in its own createRegion handler after the item lookup.
+  const aaWorkflow = (animationData = { primary: { options: { removeTemplate: false } } }) => {
+    const data = { isTemplate: true, templateData: region, targets: [], hitTargets: [] };
+    hooks.get("AutomatedAnimations-WorkflowStart")(data, animationData);
+    return data;
+  };
+  const aaSanitize = () => {
+    const clone = { primary: { options: { removeTemplate: false } } };
+    hooks.get("aa.preDataSanitize")({ templateData: region }, clone);
+    return clone.primary.options.removeTemplate;
+  };
+  return { hooks, region, scene, ally, targeted, state, app: apps[0], aaWorkflow, aaSanitize };
+}
+
+const settledYet = async (promise) => {
+  let done = false;
+  promise.then(() => { done = true; });
+  await new Promise(setImmediate);
+  return done;
+};
+
+test("animation sync: AA waits for the dialog, then plays on the confirmed targets and removes the area itself", async () => {
+  const env = dialogSetup({ animations: true });
+  const data = env.aaWorkflow();
+  assert.equal(data.deferrals.length, 1);
+  assert.equal(await settledYet(Promise.all(data.deferrals)), false, "the animation is held while the dialog is open");
+  assert.match(env.app.content(), /Анимация начнётся после подтверждения/);
+
+  await env.app.confirm();
+  await Promise.all(data.deferrals);
+  assert.deepEqual(env.targeted, [["ally"]]);
+  assert.deepEqual([...data.targets.map((token) => token.document.id)], ["ally"]);
+  assert.deepEqual([...data.hitTargets.map((token) => token.document.id)], ["ally"]);
+  assert.equal(env.aaSanitize(), true, "«Убрать шаблон» is passed to AA");
+  assert.equal(env.state.regionDeletes, 0, "the area survives until AA's animation has played");
+});
+
+test("animation sync: cancelling still releases the animation and keeps the area", async () => {
+  const env = dialogSetup({ animations: true });
+  const data = env.aaWorkflow();
+  await env.app.close();
+  await Promise.all(data.deferrals);
+  assert.equal(env.aaSanitize(), false);
+  assert.equal(env.state.regionDeletes, 0);
+  assert.deepEqual(env.targeted, []);
+});
+
+test("animation sync: a spell without an AA animation is removed by the dialog as before", async () => {
+  const env = dialogSetup({ animations: true });
+  const data = env.aaWorkflow(null);
+  assert.equal(data.deferrals, undefined);
+  await env.app.confirm();
+  assert.equal(env.state.regionDeletes, 1);
+});
+
+test("without Automated Animations or with sync off nothing is deferred", async () => {
+  for (const options of [{ animations: false }, { animations: true, sync: false }]) {
+    const env = dialogSetup(options);
+    const data = env.aaWorkflow();
+    assert.equal(data.deferrals, undefined);
+    await env.app.confirm();
+    assert.equal(env.state.regionDeletes, 1);
+  }
+});
+
+test("an animation module deleting the area does not close the dialog; targets still apply from the snapshot", async () => {
+  const hooks = new Map();
+  const targeted = [];
+  let closed = 0;
+  let regionDeletes = 0;
+  const apps = [];
+  const scene = { regions: new Map() };
+  const region = { id: "r1", parent: scene, isEffectArea: true, flags: { pf2e: { areaShape: "burst", origin: {} } },
+    getCoverage: () => ({ covered: [], blocked: [] }), delete: async () => { regionDeletes++; } };
+  scene.regions.set(region.id, region);
+  const ally = { document: { id: "ally", name: "Ally", x: 0, y: 0, width: 1, height: 1, isOwner: true, texture: { src: "a.png" }, testInsideRegion: () => true },
+    actor: { alliance: "party", isOfType: () => true }, visible: true };
+  const canvas = { ready: true, scene, grid: {}, mousePosition: null,
+    tokens: { placeables: [ally], get: (id) => (id === "ally" ? ally : null), setTargets: (ids) => targeted.push([...ids]) } };
+  class ApplicationV2 {
+    constructor(options) { this.options = options; apps.push(this); }
+    render() { this.rendered = true; return this; }
+    close() { closed++; this.rendered = false; return this; }
+  }
+  const context = vm.createContext({
+    canvas, CONST: { TOKEN_DISPLAY_MODES: { HOVER: 30, ALWAYS: 50 } }, CONFIG: { PF2E: {} }, window: { innerWidth: 1600, innerHeight: 900 },
+    Hooks: { on: (name, fn) => hooks.set(name, fn) },
+    document: { querySelectorAll: () => [], createElement: () => ({}), head: { append: () => {} } },
+    foundry: { utils: { getRoute: (path) => path }, applications: { api: { ApplicationV2 } } },
+    game: { user: { id: "u1", isGM: false }, keyboard: { isModifierActive: () => false }, messages: { get: () => null },
+      i18n: { has: () => false, localize: (key) => key },
+      settings: { register: () => {}, get: (_id, key) => (key === "templateTargetingOptions" ? {} : true), set: async () => {} } },
+    console,
+  });
+  vm.runInContext(contextSource, context);
+  vm.runInContext(featureSource, context);
+  context.pf2eEliottTools.features.templateTargeting.onInit();
+
+  hooks.get("createRegion")(region, {}, "u1");
+  // Automated Animations "Remove Template" fires once the effect finishes.
+  scene.regions.delete(region.id);
+  hooks.get("deleteRegion")(region);
+  assert.equal(closed, 0, "the dialog stays open");
+
+  const [app] = apps;
+  assert.equal(app.regionDeleted, true);
+  assert.match(app.content(), /Шаблон уже убран анимацией/);
+  hooks.get("updateRegion")(region);
+  assert.deepEqual([...app.rows.map((row) => row.id)], ["ally"], "the snapshot is kept");
+
+  await app.confirm();
+  assert.deepEqual(targeted, [["ally"]]);
+  assert.equal(regionDeletes, 0, "an already deleted area is not deleted again");
+  assert.equal(closed, 1);
+});
