@@ -26,7 +26,9 @@
   }
 
   function active(entry) {
-    return enabled() && marked(entry) && hasFeat(entry.actor);
+    // Called from the tradition getter and every spell's data preparation:
+    // the cheap flag check rules out almost every entry before settings are read.
+    return marked(entry) && enabled() && hasFeat(entry.actor);
   }
 
   function spellRank(actor) {

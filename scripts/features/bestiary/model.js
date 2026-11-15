@@ -222,22 +222,39 @@
     if ([...numeric.matchAll(/(\d*)d(\d+)/g)].some((match) => Number(match[1] || 1) > 1000 || Number(match[2]) > 10000 || Number(match[2]) < 1)) return null;
     return { type: "roll", formula, damage, label: label || damageLabel(formula), ...(flavor ? { flavor } : {}) };
   }
-  function tokens(field, original = false) {
-    const value = original ? field.originalContent ?? field.original ?? "" : field.content ?? field.value ?? "";
-    const result = [];
-    const text = (value) => { if (value) result.push({ type: "text", text: value }); };
+  // A card render tokenizes every field (and its original text). Localizing every
+  // PF2e trait and damage type for each field dominated rendering time, so the
+  // lookups are built once and rebuilt only if a source table or i18n changes.
+  const lookupTables = ["creatureTraits", "actionTraits", "npcAttackTraits", "spellTraits", "damageTypes", "damageRollFlavors"];
+  let lookupCache = null;
+  function nameLookups() {
+    const config = globalThis.CONFIG?.PF2E ?? {};
+    const i18n = globalThis.game?.i18n;
+    const sources = [...lookupTables.map((table) => config[table]), i18n?.localize, i18n?.lang];
+    if (lookupCache?.sources.every((source, index) => source === sources[index])) return lookupCache;
     const traitNames = new Map();
-    for (const table of ["creatureTraits", "actionTraits", "npcAttackTraits", "spellTraits"]) {
-      for (const key of Object.keys(globalThis.CONFIG?.PF2E?.[table] ?? {})) {
+    for (const table of lookupTables.slice(0, 4)) {
+      for (const key of Object.keys(config[table] ?? {})) {
         const label = feature.store.localize(table, key);
         traitNames.set(key.toLocaleLowerCase(), label);
         traitNames.set(label.toLocaleLowerCase(), label);
       }
     }
-    for (const label of field.traits ?? []) traitNames.set(label.toLocaleLowerCase(), label);
-    const damageNames = Object.keys(globalThis.CONFIG?.PF2E?.damageTypes ?? {}).flatMap((slug) =>
-      [slug, feature.store.localize("damageTypes", slug), feature.store.localize("damageRollFlavors", slug)].map((name) => ({ slug, name }))
+    const damageNames = Object.keys(config.damageTypes ?? {}).flatMap((slug) =>
+      [slug, feature.store.localize("damageTypes", slug), feature.store.localize("damageRollFlavors", slug)].map((name) => ({ slug, name, lower: name.toLocaleLowerCase() }))
     ).sort((a, b) => b.name.length - a.name.length);
+    lookupCache = { sources, traitNames, damageNames };
+    return lookupCache;
+  }
+  function tokens(field, original = false) {
+    const value = original ? field.originalContent ?? field.original ?? "" : field.content ?? field.value ?? "";
+    const result = [];
+    const text = (value) => { if (value) result.push({ type: "text", text: value }); };
+    const lookups = nameLookups();
+    // Field-specific labels take precedence without copying or mutating the shared lookup.
+    const fieldTraits = new Map((field.traits ?? []).map((label) => [label.toLocaleLowerCase(), label]));
+    const traitLabel = (name) => fieldTraits.get(name) ?? lookups.traitNames.get(name);
+    const damageNames = lookups.damageNames;
     function prose(source) {
       const dice = /(?<![\p{L}\d@])(?:\d+|(?=[dд]))[dд]\d+(?:\s*[+−–-]\s*(?:\d+[dд]\d+|\d+))*(?:\[[a-z][a-z, -]*\])?(?:\{([^}]+)\})?/giu;
       let cursor = 0;
@@ -245,8 +262,10 @@
         if (match.index < cursor) continue;
         text(source.slice(cursor, match.index));
         const tail = source.slice(match.index + match[0].length);
-        const suffix = damageNames.find(({ name }) => tail.trimStart().toLocaleLowerCase().startsWith(name.toLocaleLowerCase())
-          && !/\p{L}/u.test(tail.trimStart().slice(name.length, name.length + 1)));
+        const trimmed = tail.trimStart();
+        const lowered = trimmed.toLocaleLowerCase();
+        const suffix = damageNames.find(({ name, lower }) => lowered.startsWith(lower)
+          && !/\p{L}/u.test(trimmed.slice(name.length, name.length + 1)));
         const expression = match[0].replace(/\{[^}]+\}$/, "");
         const hasType = expression.includes("[");
         const formula = suffix && !hasType ? `${expression}[${suffix.slug}]` : expression;
@@ -261,9 +280,10 @@
     for (const [index, line] of value.split("\n").entries()) {
       if (index) text("\n");
       const traits = line.split(/,\s*/).map((part) => part.trim());
-      if (!original && traits.length && traits.every((trait) => traitNames.has(trait.toLocaleLowerCase()))) {
+      const labels = original ? [] : traits.map((trait) => traitLabel(trait.toLocaleLowerCase()));
+      if (!original && traits.length && labels.every((label) => label !== undefined)) {
         hasTraitLine = true;
-        for (const trait of traits) result.push({ type: "trait", label: traitNames.get(trait.toLocaleLowerCase()) });
+        for (const label of labels) result.push({ type: "trait", label });
         continue;
       }
       if (field.group === "attacks" && /^Атака [+-]\d+$/.test(line)) {

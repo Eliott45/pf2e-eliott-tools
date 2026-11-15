@@ -27,18 +27,24 @@
   }
 
   function onRenderChatMessage(message, html) {
-    try {
-      void applyRenderedMessageFixes(message, html);
-    } catch (error) {
+    applyRenderedMessageFixes(message, html).catch((error) => {
       console.error(`${logPrefix} | oath of the defender render fix failed`, error);
-    }
+    });
+  }
+
+  // createChatMessage fires on every connected client. Exactly one of them may
+  // correct HP, otherwise each client would deal the missing damage again.
+  function isResponsibleClient(message) {
+    const activeGM = game.users?.activeGM;
+    if (activeGM) return activeGM.id === game.user.id;
+    const authorId = message.author?.id ?? message.user?.id ?? message.user;
+    return typeof authorId === "string" && authorId === game.user.id;
   }
 
   async function maybeFixOathOfTheDefenderAura(message) {
-    if (!isEnabled()) return;
-
     const pf2e = message?.flags?.pf2e;
     if (pf2e?.context?.type !== "damage-taken") return;
+    if (!isEnabled() || !isResponsibleClient(message)) return;
     if (foundry.utils.getProperty(message, flagPath)) return;
 
     const applications = getIwrApplications(message);
@@ -141,9 +147,20 @@
     );
   }
 
+  let cachedPrefixes = null;
+  let cachedPrefixLang = null;
   function getOathDamageTypePrefixes() {
+    // Called for every Resistance rule during data preparation: localize once per language.
+    const lang = game?.i18n?.lang ?? "";
+    if (cachedPrefixes && cachedPrefixLang === lang) return cachedPrefixes;
     const localized = normalizeText(game?.i18n?.localize?.(oathDamageTypeKey));
-    return [...new Set([localized, oathDamageTypeFallback].map(normalizeText).filter(Boolean))];
+    const prefixes = [...new Set([localized, oathDamageTypeFallback].map(normalizeText).filter(Boolean))];
+    // Only cache once translations are loaded; before that localize() echoes the key.
+    if (localized && localized !== normalizeText(oathDamageTypeKey)) {
+      cachedPrefixes = prefixes;
+      cachedPrefixLang = lang;
+    }
+    return prefixes;
   }
 
   function installOathResistanceRulePatch() {
@@ -166,8 +183,10 @@
   }
 
   function limitOathResistanceApplications(rules) {
+    // Runs for every item of every actor on each data preparation: test the
+    // cheap rule shape before reading the world setting.
+    if (!Array.isArray(rules) || !rules.some((rule) => rule?.key === "Resistance")) return;
     if (!isEnabled()) return;
-    if (!Array.isArray(rules)) return;
 
     for (const rule of rules) {
       if (!isOathResistanceRule(rule)) continue;

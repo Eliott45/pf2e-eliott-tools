@@ -32,7 +32,8 @@
     const getSelfRollOptions = actorPrototype.getSelfRollOptions;
     actorPrototype.getSelfRollOptions = function (prefix = "self", ...args) {
       const options = getSelfRollOptions.call(this, prefix, ...args);
-      if (!enabled() || prefix !== "target") return options;
+      // Hot path (every roll-option query): compare the prefix before reading settings.
+      if (prefix !== "target" || !enabled()) return options;
       // PF2e requests these from the actual roll-context target, including its
       // contextual clone. Never read a user's globally selected token here.
       const result = options.filter((option) => option !== knownOption && option !== belowOption);
@@ -47,8 +48,8 @@
     const prepareRuleElements = featPrototype.prepareRuleElements;
     featPrototype.prepareRuleElements = function (...args) {
       const rules = prepareRuleElements.apply(this, args);
-      if (!enabled() || !(this.slug === "barrows-edge"
-        || this.sourceId === "Compendium.pf2e.classfeatures.Item.LfgeEJgJdA8WAKV8")) return rules;
+      if (!(this.slug === "barrows-edge"
+        || this.sourceId === "Compendium.pf2e.classfeatures.Item.LfgeEJgJdA8WAKV8") || !enabled()) return rules;
 
       for (const rule of rules) {
         if (rule.key !== "AdjustModifier" || rule.slug !== "barrows-edge-immanence"

@@ -31,12 +31,35 @@
       ? field.value.split(",").map((trait) => localize("creatureTraits", trait.trim())).join(", ")
       : text.value };
   }
+  // Every rendered trait badge asks for a tooltip; scanning and localizing all PF2e
+  // trait tables per badge was quadratic. Index the first matching key per table
+  // once and rebuild only when a table or the localization changes.
+  const tooltipTables = ["creatureTraits", "actionTraits", "npcAttackTraits", "spellTraits", "rarityTraits"];
+  let tooltipIndex = null;
+  function traitKeys() {
+    const sources = [...tooltipTables.map((table) => CONFIG.PF2E[table]), game.i18n?.localize, game.i18n?.lang];
+    if (tooltipIndex?.sources.every((source, index) => source === sources[index])) return tooltipIndex.keys;
+    const keys = new Map();
+    for (const table of tooltipTables) {
+      const firstInTable = new Map();
+      for (const key of Object.keys(CONFIG.PF2E[table] ?? {})) {
+        for (const name of [key.toLocaleLowerCase(), localize(table, key).toLocaleLowerCase()]) {
+          if (!firstInTable.has(name)) firstInTable.set(name, key);
+        }
+      }
+      for (const [name, key] of firstInTable) {
+        if (!keys.has(name)) keys.set(name, []);
+        keys.get(name).push(key);
+      }
+    }
+    tooltipIndex = { sources, keys };
+    return keys;
+  }
   function traitTooltip(label) {
     const target = String(label).trim().toLocaleLowerCase();
     const descriptions = CONFIG.PF2E.traitsDescriptions ?? {};
-    for (const table of ["creatureTraits", "actionTraits", "npcAttackTraits", "spellTraits", "rarityTraits"]) {
-      const key = Object.keys(CONFIG.PF2E[table] ?? {}).find((key) => key.toLocaleLowerCase() === target || localize(table, key).toLocaleLowerCase() === target);
-      if (key && typeof descriptions[key] === "string" && descriptions[key]) return descriptions[key];
+    for (const key of traitKeys().get(target) ?? []) {
+      if (typeof descriptions[key] === "string" && descriptions[key]) return descriptions[key];
     }
     return "";
   }

@@ -17,6 +17,18 @@
     "shove",
     "trip",
   ]);
+  // Messages that describe consequences or non-attack checks, never the attack itself.
+  // A spell card and its attack roll would otherwise both retaliate for one action.
+  const ignoredContextTypes = new Set([
+    "damage-roll",
+    "damage-taken",
+    "spell-cast",
+    "saving-throw",
+    "flat-check",
+    "initiative",
+    "self-effect",
+  ]);
+  let spellUuidCache = null;
 
   tools.features ??= {};
   tools.features.spells ??= {};
@@ -38,7 +50,9 @@
     if (foundry.utils.getProperty(message, featureFlagPath)?.triggeredBy) return;
 
     const context = message.flags?.pf2e?.context;
-    if (!context || context.type === "damage-roll") return;
+    if (!context || ignoredContextTypes.has(context.type)) return;
+    // A hero-point/mythic reroll repeats the same attack; it is not a new trigger.
+    if (context.isReroll) return;
     if (!isAttackAction(context)) return;
 
     const attacker = await getActorFromUuid(context.origin?.actor) ?? message.actor ?? null;
@@ -53,7 +67,7 @@
     const diceNumber = getDamageDiceNumber(spellRank);
     const formula = `{${diceNumber}d4[${damageType}]}`;
     const roll = await createDamageRoll(formula);
-    const rollMode = context.rollMode ?? message.rollMode ?? "roll";
+    const visibility = getMessageVisibility(message, context);
 
     await roll.toMessage({
       speaker: ChatMessage.getSpeaker({ actor: target }),
@@ -82,19 +96,25 @@
           },
         },
       },
-    }, { rollMode });
+    }, visibility);
+  }
+
+  // Mirror the triggering attack's audience: a secret GM attack must not reveal
+  // itself through a public retaliation card. Foundry 14 renamed rollMode to
+  // messageMode ("public"/"gm"/"blind"/"self"); older cores use "*roll" names.
+  function getMessageVisibility(message, context) {
+    const usesMessageModes = !!CONFIG.ChatMessage?.modes;
+    const recorded = usesMessageModes ? context.messageMode : context.rollMode;
+    if (typeof recorded === "string" && recorded) {
+      return usesMessageModes ? { messageMode: recorded } : { rollMode: recorded };
+    }
+    const mode = message.blind ? "blind" : message.whisper?.length ? "gm" : "public";
+    return usesMessageModes ? { messageMode: mode } : { rollMode: `${mode}roll` };
   }
 
   function isResponsibleUser() {
-    if (!game.user?.active) return false;
-
-    const activeGMs = game.users
-      .filter((user) => user.active && user.isGM)
-      .sort((a, b) => a.id.localeCompare(b.id));
-
-    return activeGMs.length > 0
-      ? game.user.id === activeGMs[0].id
-      : game.user.isGM;
+    // Same elected GM as every other automation in this module.
+    return game.user?.isGM === true && game.users.activeGM?.id === game.user.id;
   }
 
   function isAttackAction(context) {
@@ -257,4 +277,3 @@
     return element.innerHTML;
   }
 })();
-  let spellUuidCache = null;

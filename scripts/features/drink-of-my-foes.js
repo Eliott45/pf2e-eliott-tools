@@ -51,8 +51,8 @@
     installDamageTracking(prototype);
     Hooks.on("preCreateChatMessage", prepareMessage);
     Hooks.on("createChatMessage", (message) => { void onRequest(message).catch(reportError); });
-    Hooks.on("renderChatMessageHTML", renderMessage);
-    Hooks.on("renderChatMessage", renderMessage);
+    // One render hook only: Foundry 13+ fires both, and the jQuery one is deprecated there.
+    Hooks.on(Number(game.release?.generation) >= 13 ? "renderChatMessageHTML" : "renderChatMessage", renderMessage);
     installed = true;
   }
 
@@ -187,10 +187,19 @@
     if (JSON.stringify(roll.combat) !== JSON.stringify(currentCombat())) throw new Error("Ход изменился; этот Удар больше нельзя использовать.");
     // Detect actions that Foundry actually logged. Unlogged movement/actions still
     // require the player to honor the last-action requirement shown in the dialog.
-    const laterAction = game.messages.contents.some((message) => message.timestamp > source.timestamp
+    const laterAction = messagesAfter(source).some((message) => message.timestamp > source.timestamp
       && message.actor?.uuid === actor.uuid && isActionMessage(message));
     if (laterAction) throw new Error("После этого Удара уже записано другое действие персонажа.");
     return { actor, action, roll };
+  }
+
+  // The chat log is kept in creation order, and everything relevant to a Strike
+  // (later actions, damage receipts) was created after it. Scan only that tail
+  // instead of the whole, ever-growing chat history.
+  function messagesAfter(source) {
+    const messages = game.messages.contents;
+    const index = messages.lastIndexOf(source);
+    return index >= 0 ? messages.slice(index + 1) : messages;
   }
 
   function isClaimed(source) {
@@ -210,7 +219,7 @@
   }
 
   function getDamageRecord(source, actor, roll) {
-    const records = game.messages.contents.filter((m) => {
+    const records = messagesAfter(source).filter((m) => {
       const data = metadata(m, resultFlag);
       return m.author?.isGM && data?.rollKey === roll.key && data.actor === actor.uuid && data.weapon === source.item.uuid;
     });

@@ -28,8 +28,8 @@
     const original = prototype.prepareRuleElements;
     prototype.prepareRuleElements = function (options = {}) {
       const rules = original.call(this, options);
-      if (game.settings.get(moduleId, settings.energyResistantRunesEnabled) === false
-        || !this.actor?.canHostRuleElements || !this.isEquipped || this.isInvested === false) return rules;
+      if (!this.actor?.canHostRuleElements || !this.isEquipped || this.isInvested === false
+        || game.settings.get(moduleId, settings.energyResistantRunesEnabled) === false) return rules;
 
       try {
         // Prepared runes already respect available slots and the world's ABP variant.

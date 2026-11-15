@@ -34,15 +34,15 @@
     for (const key of Object.keys(attacks)) {
       if (key.startsWith(entryPrefix)) delete attacks[key];
     }
-    if (game.settings.get(moduleId, settings.weaponFamiliarityEnabled) === false) return;
-
     // Only active familiarity rules participate. Do not infer feats from translated names
     // or chain sameAs entries (advanced -> martial -> simple would grant too much).
     const sources = actor.rules.filter((rule) => rule.key === "MartialProficiency"
       && !rule.ignored && rule.item?.slug?.endsWith("-weapon-familiarity")
       && ["simple", "martial"].includes(rule.sameAs)
       && attacks[rule.slug]?.sameAs === rule.sameAs);
+    // Most characters have no familiarity feat: skip the settings lookup for them.
     if (sources.length === 0) return;
+    if (game.settings.get(moduleId, settings.weaponFamiliarityEnabled) === false) return;
 
     const targets = Object.entries(attacks).filter(([, entry]) => entry?.definition?.length
       && !entry.sameAs && Number.isInteger(entry.rank));

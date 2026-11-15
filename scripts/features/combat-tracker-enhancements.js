@@ -47,6 +47,12 @@
     if (!isSettingEnabled(settings.clearTargetsOnTurnEndEnabled)) return;
     if (!game.user?.targets?.size) return;
 
+    // Foundry 13+: one batched update and one activity broadcast for all targets.
+    if (typeof canvas?.tokens?.setTargets === "function") {
+      canvas.tokens.setTargets([]);
+      return;
+    }
+
     for (const token of [...game.user.targets]) {
       token.setTarget(false, { releaseOthers: false });
     }

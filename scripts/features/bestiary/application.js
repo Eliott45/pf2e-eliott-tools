@@ -21,13 +21,24 @@
     get gm() { return game.user.isGM && !this.preview; }
     entries() {
       const store = feature.store;
-      return (game.user.isGM ? store.privateEntries() : store.publicEntries()).map((doc) => {
-        const data = store.data(doc);
-        const projection = game.user.isGM ? feature.model.project(data) : data.projection;
-        const display = this.gm ? data.snapshot : projection;
-        return { doc, data, projection, display: { ...display, fields: display.fields.map(store.displayField) },
-          publicDoc: game.user.isGM ? game.journal.get(data.publicId) : doc };
-      }).sort((a, b) => a.display.name.localeCompare(b.display.name, "ru"));
+      return (game.user.isGM ? store.privateEntries() : store.publicEntries()).map((doc) => this.entry(doc))
+        .sort((a, b) => a.display.name.localeCompare(b.display.name, "ru"));
+    }
+    entry(doc) {
+      const store = feature.store;
+      const data = store.data(doc);
+      const projection = game.user.isGM ? feature.model.project(data) : data.projection;
+      const display = this.gm ? data.snapshot : projection;
+      return { doc, data, projection, display: { ...display, fields: display.fields.map(store.displayField) },
+        publicDoc: game.user.isGM ? game.journal.get(data.publicId) : doc };
+    }
+    // Commands act on the selected card only; preparing every entry for them
+    // (and on every keystroke in the notes) scaled with the whole bestiary.
+    selectedEntry() {
+      const doc = this.selected ? game.journal.get(this.selected) : null;
+      const kind = feature.store.data(doc)?.kind;
+      if (game.user.isGM ? kind !== "source" : kind !== "entry" || !doc.testUserPermission(game.user, "OBSERVER")) return null;
+      return this.entry(doc);
     }
     async _renderHTML() { return this.content(); }
     levelBadge(display) {
@@ -203,11 +214,18 @@
       super._onRender(context, options);
       feature.windows.add(this);
       const root = this.element;
-      root.querySelector("[data-search]")?.addEventListener("input", (event) => { this.query = event.target.value; void this.render(); });
+      root.querySelector("[data-search]")?.addEventListener("input", (event) => {
+        this.query = event.target.value;
+        // Re-render once typing pauses, not for every character.
+        clearTimeout(this.searchTimer);
+        this.searchTimer = setTimeout(() => { if (this.rendered) void this.render(); }, 150);
+      });
       root.querySelector("[data-notes]")?.addEventListener("input", (event) => {
-        const row = this.entries().find((entry) => entry.doc.id === this.selected);
-        const page = row?.publicDoc?.pages.find((p) => p.type === "text");
-        if (page) this.drafts.set(row.publicDoc.id, { text: event.target.value, base: this.drafts.get(row.publicDoc.id)?.base ?? page.text.content ?? "" });
+        // Only the note page of the selected card is needed here.
+        const doc = this.selected ? game.journal.get(this.selected) : null;
+        const publicDoc = game.user.isGM ? game.journal.get(feature.store.data(doc)?.publicId) : doc;
+        const page = publicDoc?.pages.find((p) => p.type === "text");
+        if (page) this.drafts.set(publicDoc.id, { text: event.target.value, base: this.drafts.get(publicDoc.id)?.base ?? page.text.content ?? "" });
         const hint = root.querySelector(".eb-note-actions .eb-hint");
         if (hint) hint.textContent = "Есть несохранённый текст";
       });
@@ -284,7 +302,7 @@
           for (const actor of actors) await this.add(actor, separate);
         });
       }
-      const row = this.entries().find((entry) => entry.doc.id === this.selected);
+      const row = this.selectedEntry();
       if (!row) return;
       if (command === "roll" || command === "reference") {
         const field = row.display.fields.find((field) => field.id === node.dataset.field);
@@ -309,8 +327,12 @@
             const RollClass = token.damage ? CONFIG.Dice.rolls.find((type) => type.name === "DamageRoll") : Roll;
             if (!RollClass || !RollClass.validate(token.formula)) throw new Error("Эту формулу не удалось разобрать. Проверьте описание в источнике.");
             const roll = new RollClass(token.formula, {}, { rollerId: game.user.id });
+            // Foundry 14 replaced the "core.rollMode" setting with "core.messageMode".
+            const visibility = CONFIG.ChatMessage?.modes
+              ? { messageMode: game.settings.get("core", "messageMode") }
+              : { rollMode: game.settings.get("core", "rollMode") };
             await roll.toMessage({ speaker: { alias: row.display.name }, flavor: e([row.display.name, field.label, token.flavor].filter(Boolean).join(" · ")) },
-              { rollMode: game.settings.get("core", "rollMode") });
+              visibility);
           });
         }
         return;
@@ -400,6 +422,7 @@
       return super.close(options);
     }
     _onClose(options) {
+      clearTimeout(this.searchTimer);
       feature.windows.delete(this);
       return super._onClose(options);
     }

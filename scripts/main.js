@@ -17,6 +17,9 @@
 
   Hooks.once("init", () => {
     registerSettings();
+    // Foundry 13 deprecated renderChatMessage (jQuery) in favour of renderChatMessageHTML.
+    // game.release is known only once the game initializes, not at script load.
+    Hooks.on(Number(game.release?.generation) >= 13 ? "renderChatMessageHTML" : "renderChatMessage", onRenderChatMessage);
     weaponFamiliarity.onInit();
     for (const feature of ruleFeatures) tools.features[feature.key]?.onInit();
     tools.features.mythicMagic?.onInit();
@@ -73,24 +76,29 @@
     }
   });
 
-  Hooks.on("renderChatMessage", (...args) => {
+  function onRenderChatMessage(...args) {
     if (isSettingEnabled(settings.oathOfTheDefenderEnabled)) {
       return oathOfTheDefender.onRenderChatMessage(...args);
     }
-  });
+  }
+
+  // Foundry caches the manifest's script list on the server. A browser reload can
+  // load a new main.js without loading a newly added manifest entry.
+  function loadScript(path) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/${path}`);
+      script.onload = resolve;
+      script.onerror = () => reject(new Error(`Could not load ${path}`));
+      document.head.append(script);
+    });
+  }
 
   async function initializeRuleFeatures() {
     for (const feature of ruleFeatures) {
       if (tools.features[feature.key]) continue;
       try {
-        // Support a browser reload while the server still caches the old manifest.
-        await new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/${feature.file}.js`);
-          script.onload = resolve;
-          script.onerror = () => reject(new Error(`Could not load ${feature.file}.js`));
-          document.head.append(script);
-        });
+        await loadScript(`features/${feature.file}.js`);
         tools.features[feature.key].onInit();
         if (feature.resetActors) {
           const actors = new Set([
@@ -108,15 +116,7 @@
 
   async function initializeRegaliaIntensify() {
     try {
-      if (!tools.features.regaliaIntensify) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/regalia-intensify.js`);
-          script.onload = resolve;
-          script.onerror = () => reject(new Error("Could not load regalia-intensify.js"));
-          document.head.append(script);
-        });
-      }
+      if (!tools.features.regaliaIntensify) await loadScript("features/regalia-intensify.js");
       tools.features.regaliaIntensify.initialize();
     } catch (error) {
       console.error(`${logPrefix} | Could not initialize regalia`, error);
@@ -126,15 +126,7 @@
 
   async function initializeChalice() {
     try {
-      if (!tools.features.chalice) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/chalice.js`);
-          script.onload = resolve;
-          script.onerror = () => reject(new Error("Could not load chalice.js"));
-          document.head.append(script);
-        });
-      }
+      if (!tools.features.chalice) await loadScript("features/chalice.js");
       tools.features.chalice.initialize();
       await tools.features.chalice.updateMacros();
     } catch (error) {
@@ -145,16 +137,9 @@
 
   async function initializeBestiary() {
     try {
-      if (!tools.features.bestiary?.initialize) {
-        for (const file of ["model", "store", "application", "index"]) {
-          await new Promise((resolve, reject) => {
-            const script = document.createElement("script");
-            script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/bestiary/${file}.js`);
-            script.onload = resolve;
-            script.onerror = () => reject(new Error(`Could not load bestiary/${file}.js`));
-            document.head.append(script);
-          });
-        }
+      const loadedLate = !tools.features.bestiary?.initialize;
+      if (loadedLate) {
+        for (const file of ["model", "store", "application", "index"]) await loadScript(`features/bestiary/${file}.js`);
       }
       const href = foundry.utils.getRoute(`modules/${moduleId}/styles/bestiary.css`);
       if (!document.querySelector(`link[href="${href}"]`)) {
@@ -164,9 +149,12 @@
         document.head.append(link);
       }
       tools.features.bestiary.initialize();
-      // Directory rendering may precede this fallback loader on a cached manifest.
-      ui.actors?.render();
-      ui.journal?.render();
+      // Directory rendering precedes this fallback loader on a cached manifest.
+      // Normally the launch buttons are already added by the render hooks.
+      if (loadedLate) {
+        ui.actors?.render();
+        ui.journal?.render();
+      }
     } catch (error) {
       console.error(`${logPrefix} | Could not initialize bestiary`, error);
       ui.notifications.error("Не удалось загрузить бестиарий. Перезагрузите страницу Foundry.");
@@ -175,17 +163,7 @@
 
   async function initializeFrightenedRecovery() {
     try {
-      // Foundry caches the manifest's script list on the server. A browser reload
-      // can load a new main.js without loading a newly added manifest entry.
-      if (!tools.features.frightenedRecovery) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = foundry.utils.getRoute(`modules/${moduleId}/scripts/features/frightened-recovery.js`);
-          script.onload = resolve;
-          script.onerror = () => reject(new Error("Could not load frightened-recovery.js"));
-          document.head.append(script);
-        });
-      }
+      if (!tools.features.frightenedRecovery) await loadScript("features/frightened-recovery.js");
       const feature = tools.features.frightenedRecovery;
       if (typeof feature?.onEndTurn !== "function" || typeof feature?.onUpdateCombat !== "function") {
         throw new Error("Frightened recovery handlers are unavailable");
