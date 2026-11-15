@@ -368,3 +368,61 @@ test("without a GM only one client refreshes the reaction at turn start", async 
     assert.equal(hero.getFlag(moduleId, "reactions")?.spent, expected, `client ${userId}`);
   }
 });
+
+// Square grid of 100px cells: straight and diagonal direct paths between cell centres.
+function squareGrid() {
+  return {
+    size: 100, isGridless: false,
+    getDirectPath([from, to]) {
+      const [i0, j0, i1, j1] = [Math.floor(from.y / 100), Math.floor(from.x / 100), Math.floor(to.y / 100), Math.floor(to.x / 100)];
+      const steps = Math.max(Math.abs(i1 - i0), Math.abs(j1 - j0));
+      return Array.from({ length: steps + 1 }, (_v, k) => ({
+        i: i0 + Math.round(((i1 - i0) * k) / (steps || 1)), j: j0 + Math.round(((j1 - j0) * k) / (steps || 1)),
+      }));
+    },
+    getTopLeftPoint: ({ i, j }) => ({ x: j * 100, y: i * 100 }),
+  };
+}
+
+function pathSetup() {
+  // The fighter stands at x=500; distance grows 5 ft per column away from it.
+  const env = setup({ distance: (_from, to) => Math.max(Math.abs(to.x - 500) / 100, 1) * 5 });
+  env.context.canvas.grid = squareGrid();
+  const goblin = env.addCombatant(makeActor("Goblin", { alliance: "opposition" }));
+  env.addCombatant(makeActor("Fighter", { feats: [feat("reactive-strike")] }));
+  const move = (waypoints, method = "dragging") => env.feature.handleMovement(goblin.token, {
+    origin: { x: 0, y: 0 }, method, passed: { waypoints: waypoints.map(([x, action = "walk"]) => ({ x, y: 0, action })) },
+  }, "gm");
+  return { env, move };
+}
+
+test("moving through reach and out the other side provokes Reactive Strike", async () => {
+  const { env, move } = pathSetup();
+  // 0 → 1000 in one drag: squares 400–600 are within 5 ft of the fighter.
+  await move([[1000]]);
+  assert.equal(env.messages.length, 1);
+  assert.match(env.messages[0].content, /reactive-strike/);
+});
+
+test("stopping inside reach does not provoke: the last square is not left", async () => {
+  const { env, move } = pathSetup();
+  await move([[400]]);
+  assert.equal(env.messages.length, 0);
+});
+
+test("moves that stay out of reach, teleports and undo do not provoke", async () => {
+  for (const [waypoints, method] of [[[[300]], "dragging"], [[[1000, "displace"]], "dragging"], [[[1000]], "undo"]]) {
+    const { env, move } = pathSetup();
+    await move(waypoints, method);
+    assert.equal(env.messages.length, 0, JSON.stringify({ waypoints, method }));
+  }
+});
+
+test("movement squares fill the grid between waypoints and skip displaced segments", () => {
+  const env = setup();
+  env.context.canvas.grid = squareGrid();
+  const core = env.feature.core;
+  const squares = core.movementSquares({ x: 0, y: 0 }, [{ x: 300, y: 0, action: "walk" }, { x: 900, y: 0, action: "displace" }], { width: 1 });
+  assert.deepEqual([...squares.map((square) => square.x)], [0, 100, 200, 300, 900]);
+  assert.deepEqual([...core.leftSquares(squares).map((square) => square.x)], [0, 100, 200]);
+});

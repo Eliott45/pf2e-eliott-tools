@@ -171,6 +171,52 @@
     return distanceToPoint(reactorTokenDocument, movedTokenDocument, origin, reach) <= reach;
   }
 
+  // Squares the moving token left: every square of the path but the last.
+  function leftReachAlong(reactorTokenDocument, movedTokenDocument, squares) {
+    return (squares ?? []).some((square) => withinReachOfPoint(reactorTokenDocument, movedTokenDocument, square));
+  }
+
+  function withinAlong(reactorTokenDocument, movedTokenDocument, squares, feet) {
+    return (squares ?? []).some((square) => distanceToPoint(reactorTokenDocument, movedTokenDocument, square) <= feet);
+  }
+
+  // Top-left positions of every grid square a token occupies along its path,
+  // from `origin` through `waypoints` (Foundry 13+ movement data). Segments the
+  // token was displaced along (teleport, undo, paste) are not movement: they
+  // break the path instead of filling it with squares.
+  function movementSquares(origin, waypoints, tokenDocument) {
+    const grid = globalThis.canvas?.grid;
+    const size = grid?.size ?? 100;
+    const half = (Math.min(Number(tokenDocument?.width) || 1, 1) * size) / 2;
+    const squares = [{ x: origin.x, y: origin.y }];
+    let previous = origin;
+    for (const waypoint of waypoints ?? []) {
+      if (waypoint.action !== "displace") {
+        const gridded = grid && !grid.isGridless && typeof grid.getDirectPath === "function" && typeof grid.getTopLeftPoint === "function";
+        if (gridded) {
+          // Path of the token's top-left square: its centre never sits on a grid line.
+          const offsets = grid.getDirectPath([
+            { x: previous.x + half, y: previous.y + half },
+            { x: waypoint.x + half, y: waypoint.y + half },
+          ]);
+          for (const offset of offsets.slice(1)) squares.push(grid.getTopLeftPoint(offset));
+        } else {
+          squares.push({ x: waypoint.x, y: waypoint.y });
+        }
+      }
+      previous = waypoint;
+      const last = squares.at(-1);
+      if (waypoint.action === "displace" || last.x !== waypoint.x || last.y !== waypoint.y) squares.push({ x: waypoint.x, y: waypoint.y, displaced: waypoint.action === "displace" });
+    }
+    // Drop consecutive repeats.
+    return squares.filter((square, index) => index === 0 || square.x !== squares[index - 1].x || square.y !== squares[index - 1].y);
+  }
+
+  // Squares actually walked out of: each square followed by a non-displaced step.
+  function leftSquares(squares) {
+    return squares.filter((square, index) => index < squares.length - 1 && !squares[index + 1].displaced);
+  }
+
   function auraRadius(actor) {
     const radii = [...(actor?.auras?.values?.() ?? [])].map((aura) => Number(aura.radius) || 0);
     return radii.length > 0 ? Math.max(...radii) : 0;
@@ -410,6 +456,10 @@
       withinReach,
       distanceToPoint,
       withinReachOfPoint,
+      leftReachAlong,
+      withinAlong,
+      movementSquares,
+      leftSquares,
       auraRadius,
       degreeOf,
       buildContext,

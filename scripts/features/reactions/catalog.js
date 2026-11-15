@@ -273,8 +273,7 @@
       if (!(radius > 0)) return null;
       if (context.type === "move") {
         if (!core.isEnemy(reactor.actor, context.origin.actor)) return null;
-        const inside = core.distanceToPoint(reactor.token, context.origin.token, context.from) <= radius
-          || core.within(reactor.token, context.origin.token, radius);
+        const inside = core.withinAlong(reactor.token, context.origin.token, context.squares, radius);
         return inside ? `${name(context.origin.actor)} движется через вашу ауру.` : null;
       }
       const victim = context.target;
@@ -554,7 +553,7 @@
         const enemy = context.origin;
         if (!enemy?.actor || !core.isEnemy(reactor.actor, enemy.actor) || !when(context, reactor)) return null;
         if (context.type === "move") {
-          return core.withinReachOfPoint(reactor.token, enemy.token, context.from) ? `${name(enemy.actor)} покидает клетку в зоне досягаемости.` : null;
+          return core.leftReachAlong(reactor.token, enemy.token, context.left) ? `${name(enemy.actor)} покидает клетку в зоне досягаемости.` : null;
         }
         if (!reach(reactor, enemy)) return null;
         if (context.type === "attack-roll") {

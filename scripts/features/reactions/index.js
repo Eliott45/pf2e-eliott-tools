@@ -15,7 +15,9 @@
   let entriesByTrigger = null;
   let enabled = false;
 
-  Object.assign(feature, { onInit, isEnabled: () => enabled, handleMessage, handleTokenMove, usedReaction, collectPrompts });
+  Object.assign(feature, { onInit, isEnabled: () => enabled, handleMessage, handleTokenMove, handleMovement, usedReaction, collectPrompts });
+  // Movements that aren't the creature moving itself.
+  const ignoredMethods = new Set(["undo", "paste", "config"]);
 
   function onInit() {
     game.settings.register(moduleId, settings.reactionsEnabled, {
@@ -33,7 +35,12 @@
 
     ensureStylesheet();
     Hooks.on("createChatMessage", (message) => { void handleMessage(message).catch(logError); });
-    Hooks.on("updateToken", (token, changes, _options, userId) => { void handleTokenMove(token, changes, userId).catch(logError); });
+    // Foundry 13+ reports the whole path of a move; older versions only the end point.
+    if (Number(game.release?.generation) >= 13) {
+      Hooks.on("moveToken", (token, movement, _operation, user) => { void handleMovement(token, movement, user?.id ?? user).catch(logError); });
+    } else {
+      Hooks.on("updateToken", (token, changes, _options, userId) => { void handleTokenMove(token, changes, userId).catch(logError); });
+    }
     Hooks.on("createToken", rememberPosition);
     Hooks.on("deleteToken", (token) => positions.delete(token.id));
     Hooks.on("canvasReady", () => {
@@ -168,17 +175,33 @@
     positions.set(token.id, { x: token.x, y: token.y });
   }
 
+  // Foundry 12: only the start and end of the move are known.
   async function handleTokenMove(token, changes, userId = game.user?.id) {
     if (!("x" in changes) && !("y" in changes)) return;
     const from = positions.get(token.id);
     rememberPosition(token);
-    if (!enabled || !from || (from.x === token.x && from.y === token.y)) return;
-    if (!isResponsibleClient(userId)) return;
+    if (!from || (from.x === token.x && from.y === token.y)) return;
+    await promptMove(token, [from, { x: token.x, y: token.y }], userId);
+  }
+
+  // Foundry 13+: every square along the path, including squares passed through.
+  async function handleMovement(token, movement, userId) {
+    if (!movement?.origin || ignoredMethods.has(movement.method)) return;
+    const squares = core.movementSquares(movement.origin, movement.passed?.waypoints ?? [], token);
+    rememberPosition(token);
+    if (squares.length < 2) return;
+    await promptMove(token, squares, userId);
+  }
+
+  async function promptMove(token, squares, userId) {
+    if (!enabled || !isResponsibleClient(userId)) return;
     const combat = activeCombat();
     // Only the creature taking its turn moves on its own; other moves are forced or GM repositioning.
     if (!combat || combat.combatant?.tokenId !== token.id) return;
+    const left = core.leftSquares(squares);
+    if (left.length === 0) return;
     const mover = { actor: token.actor, token };
-    const context = { type: "move", from, mover, origin: mover, target: null };
+    const context = { type: "move", from: squares[0], squares, left, mover, origin: mover, target: null };
     await postPrompts(combat, collectPrompts(combat, context));
   }
 
