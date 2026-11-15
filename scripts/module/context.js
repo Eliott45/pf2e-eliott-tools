@@ -22,6 +22,7 @@
       shieldsOfTheSpiritEnabled: "shieldsOfTheSpiritEnabled",
       templateTargetingEnabled: "templateTargetingEnabled",
       templateTargetingAnimationSync: "templateTargetingAnimationSync",
+      reactionsEnabled: "reactionsEnabled",
     },
   };
 })();

@@ -42,6 +42,9 @@
     "scripts/features/spells/shields-of-the-spirit.js",
     "scripts/features/critical-deck-translation.js",
     "scripts/features/template-targeting.js",
+    "scripts/features/reactions/core.js",
+    "scripts/features/reactions/catalog.js",
+    "scripts/features/reactions/index.js",
     "scripts/features/bestiary/model.js",
     "scripts/features/bestiary/store.js",
     "scripts/features/bestiary/application.js",
@@ -53,7 +56,8 @@
     "styles/combat-tracker-enhancements.css",
     "styles/world-clock.css",
     "styles/bestiary.css",
-    "styles/template-targeting.css"
+    "styles/template-targeting.css",
+    "styles/reactions.css"
   ],
   "packs": [
     {

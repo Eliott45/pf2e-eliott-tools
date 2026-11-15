@@ -1,0 +1,48 @@
+.pf2e-eliott-reaction header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.pf2e-eliott-reaction header img {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: none;
+}
+
+.pf2e-eliott-reaction header h3 {
+  margin: 0;
+  border: none;
+  font-size: 1em;
+}
+
+.pf2e-eliott-reaction p {
+  margin: 0 0 6px;
+}
+
+.pf2e-eliott-reaction footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 0.85em;
+}
+
+.pf2e-eliott-reaction footer button {
+  flex: 0 0 auto;
+  width: auto;
+  line-height: 1.6;
+}
+
+.pf2e-eliott-reaction-state {
+  margin-left: 4px;
+  font-size: 0.8em;
+  color: #41c179;
+}
+
+.pf2e-eliott-reaction-state.spent {
+  color: #888;
+  opacity: 0.6;
+}

@@ -13,6 +13,7 @@
     { key: "barrowsEdge", file: "barrows-edge", label: "Barrow's Edge", resetActors: true },
     { key: "drinkOfMyFoes", file: "drink-of-my-foes", label: "Drink of my Foes" },
     { key: "templateTargeting", file: "template-targeting", label: "выбора целей по шаблону" },
+    { key: "reactions", files: ["reactions/core", "reactions/catalog", "reactions/index"], label: "подсказок реакций" },
   ];
 
   Hooks.once("init", () => {
@@ -96,9 +97,9 @@
 
   async function initializeRuleFeatures() {
     for (const feature of ruleFeatures) {
-      if (tools.features[feature.key]) continue;
+      if (tools.features[feature.key]?.onInit) continue;
       try {
-        await loadScript(`features/${feature.file}.js`);
+        for (const file of feature.files ?? [feature.file]) await loadScript(`features/${file}.js`);
         tools.features[feature.key].onInit();
         if (feature.resetActors) {
           const actors = new Set([
@@ -108,7 +109,7 @@
           for (const actor of actors) actor.reset();
         }
       } catch (error) {
-        console.error(`${logPrefix} | Could not initialize ${feature.file}`, error);
+        console.error(`${logPrefix} | Could not initialize ${feature.key}`, error);
         ui.notifications.error(`Не удалось загрузить автоматизацию: ${feature.label}. Перезагрузите страницу Foundry.`);
       }
     }
@@ -372,6 +373,11 @@
             scope: "client",
           },
           {
+            key: settings.reactionsEnabled,
+            name: "Подсказки реакций",
+            scope: "world",
+          },
+          {
             key: settings.combatTrackerHpRingEnabled,
             name: "Показывать HP-кольцо в трекере",
             hint: "Добавляет круговой индикатор здоровья вокруг портрета участника боя, учитывая видимость HP-бара токена.",
@@ -432,15 +438,19 @@
     hideSettingRowForPlayers(root, settings.barrowsEdgeEnabled);
     hideSettingRowForPlayers(root, settings.drinkOfMyFoesEnabled);
     hideSettingRowForPlayers(root, settings.frightenedRecoveryEnabled);
+    hideSettingRowForPlayers(root, settings.reactionsEnabled);
 
     for (const group of getSettingsGroups()) {
-      const firstRow = findSettingRow(root, group.settings[0]?.key);
-      if (!firstRow) continue;
+      // Foundry lists settings in registration order, and features loaded later
+      // register theirs last: gather each group's rows under its heading.
+      const rows = group.settings.map((setting) => findSettingRow(root, setting.key)).filter(Boolean);
+      if (rows.length === 0) continue;
 
       const heading = document.createElement("h2");
       heading.className = "pf2e-eliott-settings-heading";
       heading.textContent = group.title;
-      firstRow.before(heading);
+      rows[0].before(heading);
+      for (let index = 1; index < rows.length; index++) rows[index - 1].after(rows[index]);
     }
   }
 
